@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.conda/
+conda-bld/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Project outputs
+predict_out/
+predict_debug_out/
+core_out/
+out_dir/
+*.tsv.hits.tsv
+PlasRip.log
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

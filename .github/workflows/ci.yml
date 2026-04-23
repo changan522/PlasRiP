@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  linux-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: plasrip
+          environment-file: environment.yml
+          auto-activate-base: false
+          channels: conda-forge,bioconda
+          channel-priority: strict
+
+      - name: Install package
+        shell: bash -l {0}
+        run: |
+          pip install -e . --no-deps
+
+      - name: Check version sync
+        shell: bash -l {0}
+        run: |
+          python scripts/check_version_sync.py
+
+      - name: Run smoke tests
+        shell: bash -l {0}
+        run: |
+          pytest -q tests/test_import_and_version.py tests/test_cli.py tests/test_install_smoke.py

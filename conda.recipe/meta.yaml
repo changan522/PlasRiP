@@ -1,0 +1,65 @@
+{% set name = "plasrip" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  noarch: python
+  skip: true  # [win]
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+
+requirements:
+  host:
+    - python >=3.10
+    - pip
+    - setuptools >=68
+    - wheel
+  run:
+    - python >=3.10
+    - numpy >=1.24
+    - pandas >=1.5
+    - tqdm >=4.64
+    - joblib >=1.2
+    - biopython >=1.81
+    - openpyxl >=3.1
+    - pytorch >=2.0
+    - mash
+    - abricate
+    - macsyfinder =2.1.4
+    - prodigal
+
+test:
+  requires:
+    - pytest >=7.0
+  imports:
+    - plasrip
+  files:
+    - tests/
+  commands:
+    - plasrip --help
+    - plasrip version
+    - plasrip models --json
+    - python scripts/verify_install.py
+    - pytest -q tests/test_import_and_version.py tests/test_cli.py tests/test_install_smoke.py
+
+about:
+  home: "https://github.com/changan-li/PlasRip"
+  summary: "Host-range prediction and PTU assignment centered plasmid analysis platform with integrated AMR, replicon, and mobility annotation."
+  description: |
+    PlasRip is a plasmid analysis platform centered on host-range prediction and
+    PTU assignment, with integrated AMR detection, replicon typing, and
+    mobility prediction.
+  license: MIT
+  license_file: LICENSE.txt
+  doc_url: "https://github.com/changan-li/PlasRip"
+  dev_url: "https://github.com/changan-li/PlasRip"
+
+extra:
+  recipe-maintainers:
+    - changan-li

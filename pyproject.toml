@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PlasRip"
+version = "0.1.0"
+description = "Host-range prediction and PTU assignment centered plasmid analysis platform with integrated AMR, replicon, and mobility annotation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Chang'an Li" }
+]
+keywords = [
+  "plasmid",
+  "host range",
+  "PTU",
+  "AMR",
+  "replicon",
+  "mobility",
+  "mash",
+  "abricate",
+  "MacSyFinder",
+  "bioinformatics"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=1.5",
+  "tqdm>=4.64",
+  "joblib>=1.2",
+  "biopython>=1.81",
+  "openpyxl>=3.1",
+  "torch>=2.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "build>=1.0",
+  "twine>=4.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/changan-li/PlasRip"
+Documentation = "https://github.com/changan-li/PlasRip"
+Repository = "https://github.com/changan-li/PlasRip"
+Issues = "https://github.com/changan-li/PlasRip/issues"
+
+[project.scripts]
+plasrip = "plasrip.cli:main"
+PlasRip = "plasrip.cli:main"
+PlasRip-assign = "plasrip.assign:main"
+PlasRip-amr = "plasrip.amr:main"
+PlasRip-replicon = "plasrip.replicon:main"
+PlasRip-predict = "plasrip.predict:main"
+PlasRip-core = "plasrip.core:main"
+PlasRip-annotate = "plasrip.annotate:main"
+PlasRip-run = "plasrip.pipeline:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["plasrip*"]
+
+[tool.setuptools.package-data]
+plasrip = [
+  "data/PTU-metadata.csv",
+  "data/PTUmember.csv",
+  "data/PTU_info.tsv",
+  "data/CONJScan/**",
+  "data/hostrange/**"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
