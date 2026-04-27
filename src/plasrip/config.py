@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 DEFAULT_THREADS = 1
@@ -59,7 +60,26 @@ def get_data_dir() -> Path:
 
 
 def get_hostrange_data_dir() -> Path:
+    """Return the bundled host-range model/data directory.
+
+    This works for both editable source-tree installs and normal conda/pip
+    installations, because it is resolved relative to the installed plasrip
+    package directory.
+    """
     return get_data_dir() / HOSTRANGE_SUBDIR
+
+
+def get_default_hostrange_dir() -> Path:
+    """Backward-compatible alias for the default bundled host-range directory."""
+    return get_hostrange_data_dir()
+
+
+def get_env_hostrange_dir() -> Path | None:
+    """Return PLASRIP_MODEL_DIR when set, otherwise None."""
+    value = os.environ.get("PLASRIP_MODEL_DIR")
+    if not value:
+        return None
+    return Path(value).expanduser().resolve()
 
 
 def get_conjscan_dir() -> Path:

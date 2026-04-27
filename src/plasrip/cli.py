@@ -13,13 +13,14 @@ from .core import run_core_analysis
 from .pipeline import run_pipeline
 from .predict import run_host_prediction
 from .assign import run_ptu_assignment as _legacy_run_ptu_assignment
-from .utils.console import HEADER_ART, print_header, print_info
+from .exceptions import PlasRipError
+from .utils.console import HEADER_ART, print_error, print_header, print_info
 from .utils.validate import check_dependencies, validate_model_dir, validate_rep_dir
 
 try:
     __version__ = version("PlasRip")
 except PackageNotFoundError:
-    __version__ = "0.1.0"
+    __version__ = "0.1.1"
 
 def _json_default(obj):
     if isinstance(obj, Path):
@@ -323,4 +324,8 @@ def main(argv: list[str] | None = None) -> int:
     if func is None:
         parser.print_help()
         return 0
-    return int(func(args) or 0)
+    try:
+        return int(func(args) or 0)
+    except PlasRipError as exc:
+        print_error(str(exc))
+        return 2

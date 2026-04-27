@@ -7,9 +7,16 @@ from pathlib import Path
 from ..exceptions import PlasRipInputError
 
 
+_WILDCARD_CHARS = set("*?[")
+
+
+def _looks_like_unexpanded_glob(path: str | Path) -> bool:
+    return any(ch in str(path) for ch in _WILDCARD_CHARS)
+
+
 def validate_fasta(path: str | Path) -> bool:
     """Return True if the path points to a readable FASTA with >=1 record."""
-    p = Path(path).resolve()
+    p = Path(path).expanduser().resolve()
     if not p.is_file() or p.stat().st_size <= 0:
         return False
     try:
@@ -24,11 +31,35 @@ def validate_fasta(path: str | Path) -> bool:
 
 def validate_fastas(paths: list[str | Path]) -> list[str]:
     """Validate multiple FASTA files and return absolute string paths."""
+    if not paths:
+        raise PlasRipInputError("No input FASTA file was provided.")
+
     valid: list[str] = []
     for path in paths:
-        p = Path(path).resolve()
+        raw = str(path)
+        p = Path(path).expanduser().resolve()
+
+        if not p.exists():
+            if _looks_like_unexpanded_glob(raw):
+                raise PlasRipInputError(
+                    f"Input FASTA path was not expanded by the shell: {raw}\n"
+                    "No matching file was found. Quote handling or wildcard expansion may be wrong; "
+                    "pass an existing FASTA file path or expand the wildcard before running PlasRiP."
+                )
+            raise PlasRipInputError(f"Input FASTA file not found: {p}")
+
+        if p.is_dir():
+            raise PlasRipInputError(f"Input FASTA path is a directory, expected a file: {p}")
+
+        if p.stat().st_size <= 0:
+            raise PlasRipInputError(f"Input FASTA file is empty: {p}")
+
         if not validate_fasta(p):
-            raise PlasRipInputError(f"Invalid FASTA file: {p}")
+            raise PlasRipInputError(
+                f"Invalid FASTA file: {p}\n"
+                "No FASTA record header starting with '>' was found, or the file could not be read."
+            )
+
         valid.append(str(p))
     return valid
 

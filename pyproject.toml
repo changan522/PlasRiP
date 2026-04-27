@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PlasRip"
-version = "0.1.0"
+version = "0.1.1"
 description = "Host-range prediction and PTU assignment centered plasmid analysis platform with integrated AMR, replicon, and mobility annotation."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -53,10 +53,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/changan-li/PlasRip"
-Documentation = "https://github.com/changan-li/PlasRip"
-Repository = "https://github.com/changan-li/PlasRip"
-Issues = "https://github.com/changan-li/PlasRip/issues"
+Homepage = "https://github.com/changan522/PlasRiP"
+Documentation = "https://github.com/changan522/PlasRiP"
+Repository = "https://github.com/changan522/PlasRiP"
+Issues = "https://github.com/changan522/PlasRiP/issues"
 
 [project.scripts]
 plasrip = "plasrip.cli:main"

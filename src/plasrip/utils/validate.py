@@ -5,7 +5,12 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from ..config import DEFAULT_MODEL_FILENAME, REQUIRED_MODEL_FILENAMES, get_hostrange_data_dir
+from ..config import (
+    DEFAULT_MODEL_FILENAME,
+    REQUIRED_MODEL_FILENAMES,
+    get_env_hostrange_dir,
+    get_hostrange_data_dir,
+)
 from ..exceptions import PlasRipConfigError, PlasRipDependencyError, PlasRipModelError
 
 
@@ -39,13 +44,54 @@ def _pick_existing(root: Path, rels: list[Path]) -> str | None:
     return None
 
 
-def validate_model_dir(model_dir: str | None) -> dict[str, str | None]:
-    if model_dir is None:
-        model_dir = str(get_hostrange_data_dir())
+def _format_model_dir_hint(root: Path | None = None) -> str:
+    bundled = get_hostrange_data_dir()
+    parts = [
+        "Host-range model directory could not be validated.",
+        f"Bundled default location: {bundled}",
+        "Expected files: "
+        f"{DEFAULT_MODEL_FILENAME}, host_profiles.joblib, host_vocab.joblib, "
+        "plasmid_codon_scaler.joblib",
+    ]
+    if root is not None:
+        parts.insert(1, f"Checked location: {root}")
+    parts.append("Use --model-dir <DIR> or set PLASRIP_MODEL_DIR=<DIR> if your models are stored elsewhere.")
+    return "\n".join(parts)
 
-    root = Path(model_dir).resolve()
+
+def resolve_model_dir(model_dir: str | None = None) -> Path:
+    """Resolve the host-range model directory.
+
+    Priority:
+    1. explicit --model-dir
+    2. PLASRIP_MODEL_DIR
+    3. bundled package data directory, e.g.
+       <env>/lib/pythonX/site-packages/plasrip/data/hostrange
+       or <source>/src/plasrip/data/hostrange for editable/source runs
+    """
+    if model_dir:
+        return Path(model_dir).expanduser().resolve()
+
+    env_dir = get_env_hostrange_dir()
+    if env_dir is not None:
+        return env_dir
+
+    return get_hostrange_data_dir().resolve()
+
+
+def validate_model_dir(model_dir: str | None) -> dict[str, str | None]:
+    root = resolve_model_dir(model_dir)
+
+    if not root.exists():
+        raise PlasRipModelError(
+            f"Host-range model directory not found: {root}\n"
+            + _format_model_dir_hint(root)
+        )
     if not root.is_dir():
-        raise PlasRipModelError(f"3.2 model directory not found: {root}")
+        raise PlasRipModelError(
+            f"Host-range model path is not a directory: {root}\n"
+            + _format_model_dir_hint(root)
+        )
 
     model_candidates = [Path("model") / DEFAULT_MODEL_FILENAME, Path(DEFAULT_MODEL_FILENAME)]
     model_path = _pick_existing(root, model_candidates)
@@ -66,8 +112,9 @@ def validate_model_dir(model_dir: str | None) -> dict[str, str | None]:
 
     if missing:
         raise PlasRipModelError(
-            f"3.2 model directory is incomplete: {root}\n"
-            f"Missing required files: {', '.join(missing)}"
+            f"Host-range model directory is incomplete: {root}\n"
+            f"Missing required files: {', '.join(missing)}\n"
+            + _format_model_dir_hint(root)
         )
 
     return {
@@ -78,12 +125,12 @@ def validate_model_dir(model_dir: str | None) -> dict[str, str | None]:
         "host_vocab_path": host_vocab_path,
         "plasmid_codon_scaler_path": scaler_path,
         "host_metadata_path": host_meta_path,
+        # Backward-compatible structured keys used by older reports/tests.
         f"model/{DEFAULT_MODEL_FILENAME}": model_path,
         "cache/host_profiles.joblib": host_profiles_path,
         "cache/host_vocab.joblib": host_vocab_path,
         "cache/plasmid_codon_scaler.joblib": scaler_path,
     }
-
 
 def validate_rep_dir(rep_dir: str) -> str:
     root = Path(rep_dir).resolve()
