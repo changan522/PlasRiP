@@ -14,7 +14,7 @@ dependencies:
   - biopython>=1.81
   - openpyxl>=3.1
   - pytorch>=2.0
-  - mash
+  - mash=2.3
   - abricate
   - macsyfinder=2.1.4
   - prodigal
