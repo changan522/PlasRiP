@@ -2,6 +2,18 @@
 
 All notable changes to PlasRiP are documented in this file.
 
+
+## [0.2.1] - 2026-09-03
+
+### Changed
+- Added first-class Conda installation instructions for the `changan522` channel.
+- Pinned the Conda/runtime Mash dependency to version 2.3 to match PlasRiP Reference Database v2.0.
+- Updated release and installation documentation so the GitHub, Conda, and database distributions describe the same supported configuration.
+
+### Compatibility
+- No host-range prediction, PTU assignment, PGG contextualization, annotation, or output-schema algorithms were changed from v0.2.0.
+- Continues to use PlasRiP Reference Database v2.0 (schema 2.0).
+
 ## [0.2.0] - 2026-09-03
 
 ### Added

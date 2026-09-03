@@ -3,7 +3,7 @@
 
 """Assign query plasmids to stable PTUs using the external PlasRiP database.
 
-PlasRiP v0.2.0 separates software and reference data. PTU assignment reads
+PlasRiP v0.2.x separates software and reference data. PTU assignment reads
 ``plasmid_reference_index.tsv`` and ``PTU_metadata.tsv`` from a versioned
 reference database and uses the database's ``mash_index/`` sketches.
 """

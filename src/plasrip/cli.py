@@ -21,7 +21,7 @@ from .utils.validate import check_dependencies, validate_model_dir
 try:
     __version__ = version("PlasRip")
 except PackageNotFoundError:
-    __version__ = "0.2.0"
+    __version__ = "0.2.1"
 
 
 def _json_default(obj):

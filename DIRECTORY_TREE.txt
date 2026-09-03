@@ -1,4 +1,4 @@
-PlasRiP v0.2.0 release tree
+PlasRiP v0.2.1 release tree
 
 .
 ./.github
@@ -17,6 +17,7 @@ PlasRiP v0.2.0 release tree
 ./README.md
 ./RELEASE_NOTES_v0.1.1.md
 ./RELEASE_NOTES_v0.2.0.md
+./RELEASE_NOTES_v0.2.1.md
 ./TAGGING_AND_RELEASE.md
 ./VERSION
 ./conda.recipe

@@ -1,4 +1,4 @@
-# PlasRiP v0.2.0 conda release guide
+# PlasRiP v0.2.1 conda release guide
 
 ## 1. Verify version synchronization
 
@@ -6,7 +6,7 @@
 python scripts/check_version_sync.py
 ```
 
-The canonical version must be `0.2.0` and should match `VERSION`, `pyproject.toml`, `src/plasrip/__init__.py`, and `conda.recipe/meta.yaml`.
+The canonical version must be `0.2.1` and should match `VERSION`, `pyproject.toml`, `src/plasrip/__init__.py`, and `conda.recipe/meta.yaml`.
 
 ## 2. Run tests
 
@@ -32,7 +32,7 @@ conda build conda.recipe --output
 ```bash
 conda create -n plasrip-test python=3.10 -y
 conda activate plasrip-test
-conda install --use-local -c conda-forge -c bioconda plasrip=0.2.0
+conda install --use-local -c conda-forge -c bioconda plasrip=0.2.1
 plasrip version
 plasrip models --json
 ```
@@ -48,8 +48,8 @@ anaconda upload $(conda build conda.recipe --output)
 
 ## 6. GitHub release convention
 
-Software tag: `v0.2.0`  
-Software release title: `PlasRiP v0.2.0`  
+Software tag: `v0.2.1`  
+Software release title: `PlasRiP v0.2.1`  
 Database tag: `database-v2.0`
 
 The software and database are versioned independently.

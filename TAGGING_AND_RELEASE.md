@@ -4,14 +4,14 @@
 
 For this release:
 
-- package version: `0.2.0`
-- Git tag: `v0.2.0`
-- GitHub release title: `PlasRiP v0.2.0`
+- package version: `0.2.1`
+- Git tag: `v0.2.1`
+- GitHub release title: `PlasRiP v0.2.1`
 
 Use an annotated software tag:
 
 ```bash
-git tag -a v0.2.0 -m "PlasRiP v0.2.0"
+git tag -a v0.2.1 -m "PlasRiP v0.2.1"
 ```
 
 Recommended release sequence:
@@ -21,18 +21,18 @@ python scripts/check_version_sync.py
 pytest -q
 git status
 git add .
-git commit -m "release: v0.2.0"
-git tag -a v0.2.0 -m "PlasRiP v0.2.0"
+git commit -m "release: v0.2.1"
+git tag -a v0.2.1 -m "PlasRiP v0.2.1"
 git push origin main
-git push origin v0.2.0
+git push origin v0.2.1
 ```
 
 Recommended GitHub software-release assets:
 
-- `plasrip-0.2.0-py3-none-any.whl`
+- `plasrip-0.2.1-py3-none-any.whl`
 - GitHub-generated source archives
 
-Use `RELEASE_NOTES_v0.2.0.md` as the basis for the release description.
+Use `RELEASE_NOTES_v0.2.1.md` as the basis for the release description.
 
 ## Reference database
 

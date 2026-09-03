@@ -9,7 +9,7 @@
 
 Starting from one or more plasmid FASTA files, PlasRiP integrates host-range prediction, PTU/PGG assignment, antimicrobial-resistance (AMR) gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
 
-> **Current release:** v0.2.0  
+> **Current release:** v0.2.1  
 > **Reference database:** PlasRiP Reference Database v2.0  
 > **Primary command:** `plasrip`  
 > **Main workflow:** `plasrip run`
@@ -65,59 +65,63 @@ The two host concepts are intentionally separated:
 
 ## Installation
 
-PlasRiP is designed for Linux. The Python package and the external bioinformatics tools are installed separately.
+PlasRiP is designed for Linux. **Conda is the recommended installation method** because it installs PlasRiP together with the required external bioinformatics tools.
 
-### Recommended for the GitHub v0.2.0 release
+### Recommended: Conda
 
-Create a clean conda environment containing the required external command-line tools:
+Create a dedicated environment and install PlasRiP v0.2.1:
 
 ```bash
 conda create -n plasrip \
-  -c conda-forge -c bioconda \
-  python=3.10 \
-  mash=2.3 \
-  abricate \
-  prodigal \
-  macsyfinder=2.1.4 \
-  pip -y
-
-conda activate plasrip
+  -c changan522 \
+  -c conda-forge \
+  -c bioconda \
+  plasrip=0.2.1 -y
 ```
 
-Install the v0.2.0 wheel from the GitHub software release:
+Activate the environment:
 
 ```bash
-python -m pip install \
-  https://github.com/changan522/PlasRiP/releases/download/v0.2.0/plasrip-0.2.0-py3-none-any.whl
+conda activate plasrip
 ```
 
 Verify the installation:
 
 ```bash
-plasrip version
+plasrip --version
 plasrip --help
 plasrip models --json
 ```
 
-Check external tools:
+Expected version:
 
-```bash
-mash --version
-abricate --version
-prodigal -v
-macsyfinder --version
+```text
+0.2.1
 ```
 
-For ABRicate-based modules, also confirm that the required databases are available:
+The Conda package resolves the required runtime tools, including **Mash 2.3**, ABRicate, Prodigal, and MacSyFinder.
+
+For ABRicate-based modules, confirm that the required databases are available:
 
 ```bash
 abricate --list
 ```
 
+### Alternative: install the GitHub wheel
+
+The wheel attached to the GitHub v0.2.1 release can also be installed directly:
+
+```bash
+python -m pip install \
+  https://github.com/changan522/PlasRiP/releases/download/v0.2.1/plasrip-0.2.1-py3-none-any.whl
+```
+
+When using the wheel installation, external bioinformatics tools such as Mash 2.3, ABRicate, Prodigal, and MacSyFinder must be installed separately.
+
 ### Installation from source
 
 ```bash
-git clone --branch v0.2.0 https://github.com/changan522/PlasRiP.git
+git clone --branch v0.2.1 https://github.com/changan522/PlasRiP.git
 cd PlasRiP
 conda env create -f environment.yml
 conda activate plasrip
@@ -405,7 +409,7 @@ Model-directory resolution follows this priority:
 
 ### PTU/PGG reference resources
 
-PTU/PGG metadata are **not bundled in the software package** in v0.2.0. They are provided by the external versioned reference database:
+PTU/PGG metadata are **not bundled in the software package** in v0.2.x. They are provided by the external versioned reference database:
 
 - `mash_index/`
 - `plasmid_reference_index.tsv`
@@ -480,7 +484,7 @@ REPLICON_genes
 MOB
 ```
 
-`Predicted_host_confidence` is not reported in v0.2.0; raw model scores and host-set outputs are retained instead.
+`Predicted_host_confidence` is not reported in v0.2.x; raw model scores and host-set outputs are retained instead.
 
 ---
 
@@ -543,7 +547,7 @@ Confirm that the AMR and PlasmidFinder databases required by your workflow are a
 
 ## Python API
 
-The v0.2.0 package exposes the reference-database interface and major workflows:
+The v0.2.x package exposes the reference-database interface and major workflows:
 
 ```python
 import plasrip
@@ -605,6 +609,7 @@ PlasRiP/
 ├── README.md
 ├── CHANGELOG.md
 ├── RELEASE_NOTES_v0.2.0.md
+├── RELEASE_NOTES_v0.2.1.md
 └── VERSION
 ```
 

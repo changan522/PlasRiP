@@ -1,4 +1,4 @@
-PlasRiP conda recipe notes (v0.2.0)
+PlasRiP conda recipe notes (v0.2.1)
 
 - Host-range model assets under `src/plasrip/data/hostrange/` remain packaged with the software.
 - CONJScan assets remain packaged for mobility analysis.
