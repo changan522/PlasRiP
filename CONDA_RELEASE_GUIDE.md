@@ -1,4 +1,4 @@
-# PlasRip conda release guide
+# PlasRiP v0.2.0 conda release guide
 
 ## 1. Verify version synchronization
 
@@ -6,76 +6,50 @@
 python scripts/check_version_sync.py
 ```
 
-The canonical version is stored in `VERSION`. For this release it must be `0.1.0`, and it should match:
+The canonical version must be `0.2.0` and should match `VERSION`, `pyproject.toml`, `src/plasrip/__init__.py`, and `conda.recipe/meta.yaml`.
 
-- `pyproject.toml`
-- `src/plasrip/__init__.py`
-- `src/plasrip/cli.py`
-- `conda.recipe/meta.yaml`
-
-## 2. Create the build environment
+## 2. Run tests
 
 ```bash
-conda env create -f environment.yml
-conda activate plasrip
+pytest -q
 ```
 
-## 3. Run pre-release checks
+## 3. Build the conda package
 
 ```bash
-bash scripts/release_prep.sh
+conda install -n base -c conda-forge conda-build anaconda-client
+conda build conda.recipe
 ```
 
-## 4. Build the conda package locally
-
-```bash
-bash scripts/build_conda_package.sh
-```
-
-To print the exact output artifact path:
+Print the generated artifact path:
 
 ```bash
 conda build conda.recipe --output
 ```
 
-## 5. Test installation from the locally built package
+## 4. Test a local conda installation
 
 ```bash
-bash scripts/install_local_conda_package.sh plasrip-test
+conda create -n plasrip-test python=3.10 -y
 conda activate plasrip-test
-plasrip --help
+conda install --use-local -c conda-forge -c bioconda plasrip=0.2.0
 plasrip version
-python scripts/verify_install.py
+plasrip models --json
 ```
 
-## 6. Upload to Anaconda.org
+The external PlasRiP Reference Database v2.0 is distributed separately and is not bundled in the conda package.
+
+## 5. Upload to Anaconda.org
 
 ```bash
 anaconda login
-bash scripts/upload_anaconda.sh
+anaconda upload $(conda build conda.recipe --output)
 ```
 
-## 7. Tag the release on GitHub
+## 6. GitHub release convention
 
-```bash
-git add .
-git commit -m "release: v0.1.0"
-git tag -a v0.1.0 -m "PlasRip v0.1.0"
-git push origin main
-git push origin v0.1.0
-```
+Software tag: `v0.2.0`  
+Software release title: `PlasRiP v0.2.0`  
+Database tag: `database-v2.0`
 
-## 8. Recommended release checklist
-
-- Confirm `python scripts/check_version_sync.py` passes
-- Confirm all packaged data assets are present under `src/plasrip/data/`
-- Run smoke tests defined in `conda.recipe/meta.yaml`
-- Remove local build outputs before creating a release archive
-- Use an annotated Git tag with the `v` prefix
-- Paste `RELEASE_NOTES_v0.1.0.md` into the GitHub release description
-
-## Notes
-
-- This recipe is intended for Linux or WSL environments.
-- Windows builds are intentionally disabled in `conda.recipe/meta.yaml`.
-- The package build uses `pip install . --no-deps` because dependencies are managed by conda.
+The software and database are versioned independently.

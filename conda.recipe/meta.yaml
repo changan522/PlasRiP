@@ -1,5 +1,5 @@
 {% set name = "plasrip" %}
-{% set version = "0.1.1" %}
+{% set version = "0.2.0" %}
 
 package:
   name: {{ name|lower }}
@@ -49,7 +49,7 @@ test:
 
 about:
   home: "https://github.com/changan522/PlasRiP"
-  summary: "Host-range prediction and PTU assignment centered plasmid analysis platform with integrated AMR, replicon, and mobility annotation."
+  summary: "Plasmid host-range prediction with external PTU/PGG reference database and integrated annotation."
   description: |
     PlasRip is a plasmid analysis platform centered on host-range prediction and
     PTU assignment, with integrated AMR detection, replicon typing, and

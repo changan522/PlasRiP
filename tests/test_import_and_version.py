@@ -14,3 +14,6 @@ def test_public_api_exports():
     assert callable(plasrip.run_core_analysis)
     assert callable(plasrip.run_annotation)
     assert callable(plasrip.run_pipeline)
+    assert callable(plasrip.load_reference_database)
+    assert callable(plasrip.validate_reference_database)
+    assert plasrip.PlasRipReferenceDatabase is not None

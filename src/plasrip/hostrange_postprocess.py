@@ -137,101 +137,6 @@ def classify_host_range(
     return counts[["PLASMID", "Predicted_host_range_class"]]
 
 
-def estimate_prediction_confidence(
-    top_hits_df: pd.DataFrame,
-    set_summary_df: pd.DataFrame | None = None,
-    range_df: pd.DataFrame | None = None,
-) -> pd.DataFrame:
-    """
-    Confidence heuristic for software output.
-
-    Uses:
-    - top1/top2 score gap
-    - host set size
-    - genus set size
-    - host-range class
-
-    This remains a software-side heuristic and does not alter the 3.2 model
-    inference or the score-delta host-set logic.
-    """
-    if top_hits_df is None or top_hits_df.empty:
-        return pd.DataFrame(columns=["PLASMID", "Predicted_host_top1_score", "Predicted_host_confidence"])
-
-    work = top_hits_df.sort_values(["PLASMID", "Rank"]).groupby("PLASMID").head(2)
-    rows = []
-    for plasmid, sub in work.groupby("PLASMID", sort=False):
-        scores = sub["Score"].tolist()
-        top1 = float(scores[0]) if scores else None
-        gap = (float(scores[0]) - float(scores[1])) if len(scores) > 1 else None
-        rows.append({
-            "PLASMID": plasmid,
-            "Predicted_host_top1_score": top1,
-            "_gap": gap,
-        })
-    conf = pd.DataFrame(rows)
-
-    if set_summary_df is not None and not set_summary_df.empty:
-        use_cols = [c for c in ["PLASMID", "Predicted_host_set_size", "Predicted_genus_set_size"] if c in set_summary_df.columns]
-        if use_cols:
-            conf = conf.merge(set_summary_df[use_cols].copy(), on="PLASMID", how="left")
-
-    if range_df is not None and not range_df.empty:
-        use_cols = [c for c in ["PLASMID", "Predicted_host_range_class"] if c in range_df.columns]
-        if use_cols:
-            conf = conf.merge(range_df[use_cols].copy(), on="PLASMID", how="left")
-
-    def _score_row(row: pd.Series) -> str:
-        score = 0
-        gap = row.get("_gap")
-        set_size = row.get("Predicted_host_set_size")
-        genus_size = row.get("Predicted_genus_set_size")
-        range_class = str(row.get("Predicted_host_range_class") or "").strip().lower()
-
-        try:
-            if gap is not None and not pd.isna(gap):
-                if float(gap) >= 0.25:
-                    score += 2
-                elif float(gap) >= 0.10:
-                    score += 1
-        except Exception:
-            pass
-
-        try:
-            if set_size is not None and not pd.isna(set_size):
-                if float(set_size) <= 2:
-                    score += 2
-                elif float(set_size) <= 5:
-                    score += 1
-                else:
-                    score -= 1
-        except Exception:
-            pass
-
-        try:
-            if genus_size is not None and not pd.isna(genus_size):
-                if float(genus_size) <= 1:
-                    score += 1
-                elif float(genus_size) >= 3:
-                    score -= 1
-        except Exception:
-            pass
-
-        if range_class == "narrow":
-            score += 1
-        elif range_class == "broad":
-            score -= 1
-
-        if score >= 4:
-            return "high"
-        if score >= 2:
-            return "medium"
-        return "low"
-
-    conf["Predicted_host_confidence"] = conf.apply(_score_row, axis=1)
-    conf = conf.drop(columns=["_gap"], errors="ignore")
-    return conf[["PLASMID", "Predicted_host_top1_score", "Predicted_host_confidence"]]
-
-
 def build_hostrange_summary(top_hits_df: pd.DataFrame, set_df: pd.DataFrame, range_df: pd.DataFrame) -> pd.DataFrame:
     if top_hits_df is None or top_hits_df.empty:
         return empty_hostrange_df()
@@ -269,9 +174,18 @@ def build_hostrange_summary(top_hits_df: pd.DataFrame, set_df: pd.DataFrame, ran
             )
         )
 
-    conf = estimate_prediction_confidence(top_hits_df, set_summary_df=set_summary, range_df=range_df)
+    # The model score is reported directly from the top-ranked host.  We do not
+    # derive an additional high/medium/low confidence label because the previous
+    # heuristic mixed score separation with predicted host-set breadth and was
+    # not independently calibrated.
+    top_scores = (
+        top_hits_df.sort_values(["PLASMID", "Rank"])
+        .groupby("PLASMID", as_index=False)
+        .first()[["PLASMID", "Score"]]
+        .rename(columns={"Score": "Predicted_host_top1_score"})
+    )
 
-    summary = top1.merge(conf, on="PLASMID", how="left")
+    summary = top1.merge(top_scores, on="PLASMID", how="left")
     summary = summary.merge(set_summary, on="PLASMID", how="left")
     summary = summary.merge(range_df, on="PLASMID", how="left")
     return reorder_columns(summary, HOSTRANGE_COLUMNS, keep_extra=False)

@@ -7,7 +7,7 @@ import pytest
 
 from plasrip.exceptions import PlasRipConfigError, PlasRipModelError
 from plasrip.utils.taxonomy import load_host_metadata
-from plasrip.utils.validate import validate_model_dir, validate_out_dir, validate_rep_dir
+from plasrip.utils.validate import validate_model_dir, validate_out_dir
 
 
 def test_validate_out_dir_creates_directory(tmp_path: Path):
@@ -22,12 +22,6 @@ def test_validate_out_dir_rejects_nonempty_directory_without_overwrite(tmp_path:
     (out_dir / "existing.txt").write_text("x", encoding="utf-8")
     with pytest.raises(PlasRipConfigError):
         validate_out_dir(str(out_dir), overwrite=False)
-
-
-def test_validate_rep_dir(tmp_path: Path):
-    rep_dir = tmp_path / "rep"
-    rep_dir.mkdir()
-    assert Path(validate_rep_dir(str(rep_dir))).resolve() == rep_dir.resolve()
 
 
 def test_validate_model_dir_structured_layout(tmp_path: Path):

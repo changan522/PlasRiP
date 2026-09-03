@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PlasRip"
-version = "0.1.1"
-description = "Host-range prediction and PTU assignment centered plasmid analysis platform with integrated AMR, replicon, and mobility annotation."
+version = "0.2.0"
+description = "Plasmid host-range prediction with database-backed PTU assignment, PGG contextualization, and integrated annotation."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -71,7 +71,7 @@ PlasRip-run = "plasrip.pipeline:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-include-package-data = true
+include-package-data = false
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -79,9 +79,6 @@ include = ["plasrip*"]
 
 [tool.setuptools.package-data]
 plasrip = [
-  "data/PTU-metadata.csv",
-  "data/PTUmember.csv",
-  "data/PTU_info.tsv",
   "data/CONJScan/**",
   "data/hostrange/**"
 ]

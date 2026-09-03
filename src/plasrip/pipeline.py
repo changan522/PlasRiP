@@ -1,9 +1,9 @@
-"""Full workflow orchestrator for PlasRiP v2.
+"""Full PlasRiP v2 workflow orchestrator.
 
-Minimal separator fix:
-- preserve the existing refined top-level content
-- only add blank-line + horizontal-rule separators between major sections
-- keep nested modules silent
+The pipeline owns one validated reference-database object for the complete
+run and reuses it across all query plasmids. Nested modules remain quiet so
+the top-level command provides one coherent progress display and one frozen
+summary schema.
 """
 
 from __future__ import annotations
@@ -30,7 +30,8 @@ from .config import (
     DEFAULT_REPLICON_OUT,
     DEFAULT_SUMMARY_OUT,
 )
-from .core import run_core_analysis
+from .core import _ptu_annotation_table, run_core_analysis
+from .database import build_assignment_indexes, load_database, ptu_metadata_lookup
 from .schemas import SUMMARY_COLUMNS, empty_summary_df, reorder_columns
 from .utils.console import (
     print_done,
@@ -145,13 +146,13 @@ def run_pipeline(
     input_fastas: list[str],
     out_dir: str,
     model_dir: str | None,
-    rep_dir: str,
+    database_dir: str | None,
     topk: int = 10,
     score_delta: float = 0.20,
     tax_level: str = "species",
     range_threshold_narrow: float | None = None,
     range_threshold_broad: float | None = None,
-    ptu_threshold: float = 0.05,
+    ptu_threshold: float | None = None,
     ptu_mash: str = "mash",
     mash_k: int | None = None,
     mash_s: int | None = None,
@@ -198,12 +199,22 @@ def run_pipeline(
     failed = 0
 
     try:
+        # Resolve and validate the database once for the whole workflow.
+        # Reusing these objects avoids re-reading the 64k-plasmid index and
+        # PTU/PGG metadata for every query plasmid.
+        db = load_database(database_dir, check_sketches=True)
+        assignment_indexes = build_assignment_indexes(db)
+        ptu_lookup = ptu_metadata_lookup(db)
+        ptu_annotation = _ptu_annotation_table(db)
+
         _reset_pipeline_outputs(out_root, output_all_scores=output_all_scores)
         if not quiet:
             print_header()
             print_info("PlasRiP run started")
             print_info(f"total plasmids : {total}")
             print_info("mode           : per-plasmid workflow")
+            print_info(f"database       : {db.database_version} (schema {db.schema_version})")
+            print_info(f"PTUs / PGGs    : {len(db.ptu_metadata)} / {len(db.pgg_metadata)}")
 
         for idx, fasta in enumerate(input_fastas, start=1):
             name = Path(fasta).name
@@ -220,7 +231,7 @@ def run_pipeline(
                 core_results = run_core_analysis(
                     input_fastas=[fasta],
                     model_dir=model_dir,
-                    rep_dir=rep_dir,
+                    database_dir=str(db.root),
                     out_dir=str(workdir / "core"),
                     topk=topk,
                     score_delta=score_delta,
@@ -239,6 +250,10 @@ def run_pipeline(
                     log_file=None,
                     quiet=True,
                     show_header=False,
+                    _database=db,
+                    _assignment_indexes=assignment_indexes,
+                    _ptu_meta_lookup=ptu_lookup,
+                    _ptu_annotation=ptu_annotation,
                 )
                 core_row = _first_row(core_results.get("core_summary", pd.DataFrame()))
 
@@ -252,9 +267,11 @@ def run_pipeline(
 
                     print_step(name, "PTU assignment")
                     print_done(f"PTU                   : {_fmt(core_row.get('PTU'))}")
-                    print_done(f"assignment method     : {_fmt(core_row.get('how_assigned'))}")
-                    print_done(f"PTU hits              : {_fmt(core_row.get('PTU_hits'))}")
-                    print_info(f"closest rep dist      : {_fmt(core_row.get('closest_rep_dist'))}")
+                    print_done(f"PGG                   : {_fmt(core_row.get('PGG_ID'))}")
+                    print_info(f"PGG status            : {_fmt(core_row.get('PGG_assignment_status'))}")
+                    print_done(f"assignment method     : {_fmt(core_row.get('PTU_assignment_method'))}")
+                    print_done(f"PTU hits              : {_fmt(core_row.get('PTU_candidate_hits'))}")
+                    print_info(f"closest rep dist      : {_fmt(core_row.get('PTU_closest_rep_dist'))}")
                     _section_break()
 
                 ann_results = run_annotation(
@@ -365,14 +382,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the full PlasRiP v2 workflow")
     parser.add_argument("-i", "--input", nargs="+", required=True)
     parser.add_argument("--model-dir", required=False, default=None)
-    parser.add_argument("--rep-dir", required=True)
+    parser.add_argument("--database", default=None, help="Reference database directory (or set PLASRIP_DATABASE)")
     parser.add_argument("-o", "--out-dir", required=True)
     parser.add_argument("--topk", type=int, default=10)
     parser.add_argument("--score-delta", type=float, default=0.20)
     parser.add_argument("--tax-level", choices=["species", "genus", "family"], default="species")
     parser.add_argument("--range-threshold-narrow", type=float, default=None)
     parser.add_argument("--range-threshold-broad", type=float, default=None)
-    parser.add_argument("--ptu-threshold", type=float, default=0.05)
+    parser.add_argument("--ptu-threshold", type=float, default=None, help="Default: database manifest cutoff")
     parser.add_argument("--ptu-mash", default="mash")
     parser.add_argument("--mash-k", type=int, default=None)
     parser.add_argument("--mash-sketch-size", dest="mash_s", type=int, default=None)
@@ -409,7 +426,7 @@ def main() -> None:
         input_fastas=args.input,
         out_dir=args.out_dir,
         model_dir=args.model_dir,
-        rep_dir=args.rep_dir,
+        database_dir=args.database,
         topk=args.topk,
         score_delta=args.score_delta,
         tax_level=args.tax_level,

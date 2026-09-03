@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from .api import (
+    PlasRipReferenceDatabase,
+    load_reference_database,
+    validate_reference_database,
     run_annotation,
     run_core_analysis,
     run_host_prediction,
@@ -11,6 +14,9 @@ from .api import (
 )
 
 __all__ = [
+    "PlasRipReferenceDatabase",
+    "load_reference_database",
+    "validate_reference_database",
     "run_host_prediction",
     "run_ptu_assignment",
     "run_core_analysis",
@@ -18,4 +24,4 @@ __all__ = [
     "run_pipeline",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

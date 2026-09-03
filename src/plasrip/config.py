@@ -43,9 +43,12 @@ DEFAULT_CORE_SUMMARY_OUT = "core_summary.tsv"
 DEFAULT_ANNOTATION_SUMMARY_OUT = "annotation_summary.tsv"
 DEFAULT_SUMMARY_OUT = "summary.tsv"
 
-PTU_METADATA_FILENAME = "PTU-metadata.csv"
-PTU_MEMBER_FILENAME = "PTUmember.csv"
-PTU_INFO_FILENAME = "PTU_info.tsv"
+# External reference-database layout (v2.0 schema)
+MASH_INDEX_SUBDIR = "mash_index"
+PLASMID_REFERENCE_INDEX_FILENAME = "plasmid_reference_index.tsv"
+PTU_METADATA_FILENAME = "PTU_metadata.tsv"
+PGG_METADATA_FILENAME = "PGG_metadata.tsv"
+DATABASE_MANIFEST_FILENAME = "database_manifest.tsv"
 
 HOSTRANGE_SUBDIR = "hostrange"
 CONJSCAN_SUBDIR = "CONJScan"
@@ -84,15 +87,3 @@ def get_env_hostrange_dir() -> Path | None:
 
 def get_conjscan_dir() -> Path:
     return get_data_dir() / CONJSCAN_SUBDIR
-
-
-def get_ptu_metadata_path() -> Path:
-    return get_data_dir() / PTU_METADATA_FILENAME
-
-
-def get_ptu_member_path() -> Path:
-    return get_data_dir() / PTU_MEMBER_FILENAME
-
-
-def get_ptu_info_path() -> Path:
-    return get_data_dir() / PTU_INFO_FILENAME

@@ -1,11 +1,7 @@
-PlasRip conda recipe notes
-==========================
+PlasRiP conda recipe notes (v0.2.0)
 
-This directory contains a Linux/WSL-oriented conda recipe for building the
-PlasRip package from the local source tree.
-
-Key design choices:
-- The package is declared as `noarch: python`, but Windows builds are disabled.
-- Dependencies are managed by conda; the build step uses `pip install . --no-deps`.
-- Smoke tests are executed during `conda build` via `meta.yaml`.
-- Model/data assets under `src/plasrip/data/` are packaged via `pyproject.toml`.
+- Host-range model assets under `src/plasrip/data/hostrange/` remain packaged with the software.
+- CONJScan assets remain packaged for mobility analysis.
+- PTU/PGG reference metadata and Mash sketches are NOT bundled with the conda package.
+- PTU-related workflows require the external PlasRiP Reference Database v2.0 via `--database` or `PLASRIP_DATABASE`.
+- The external database is versioned independently from the software package.

@@ -3,14 +3,14 @@
 [![Anaconda-Server Badge](https://anaconda.org/changan522/plasrip/badges/version.svg)](https://anaconda.org/changan522/plasrip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 [![Platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](#installation)
-[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](#installation)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](#installation)
 
-**PlasRiP** is a Linux-based plasmid analysis platform for **host-range prediction**, **plasmid taxonomic unit (PTU) assignment**, and optional plasmid functional annotation.
+**PlasRiP** is a Linux-based plasmid analysis platform for **host-range prediction**, **plasmid taxonomic unit (PTU) assignment**, **plasmid genome group (PGG) contextualization**, and optional plasmid functional annotation.
 
-Starting from one or more plasmid FASTA files, PlasRiP integrates host-range prediction, PTU assignment, AMR gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
+Starting from one or more plasmid FASTA files, PlasRiP integrates host-range prediction, PTU/PGG assignment, antimicrobial-resistance (AMR) gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
 
-> **Current release:** v0.1.1  
-> **Recommended installation:** conda  
+> **Current release:** v0.2.0  
+> **Reference database:** PlasRiP Reference Database v2.0  
 > **Primary command:** `plasrip`  
 > **Main workflow:** `plasrip run`
 
@@ -21,13 +21,14 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates host-range pre
 - [Key features](#key-features)
 - [Workflow overview](#workflow-overview)
 - [Installation](#installation)
-- [Required external resource: PTU sketch library](#required-external-resource-ptu-sketch-library)
+- [Required reference database](#required-reference-database)
 - [Quick start](#quick-start)
 - [Command-line usage](#command-line-usage)
 - [Input requirements](#input-requirements)
 - [Models and resources](#models-and-resources)
 - [Output files](#output-files)
 - [Troubleshooting](#troubleshooting)
+- [Python API](#python-api)
 - [Developer and maintainer notes](#developer-and-maintainer-notes)
 - [Citation](#citation)
 - [License](#license)
@@ -37,14 +38,15 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates host-range pre
 
 ## Key features
 
-- **Host-range prediction** using a bundled pre-trained host-range model
-- **Automatic host-range model discovery** after conda or source installation
-- **PTU assignment** using Mash-based comparison against PTU sketch resources
+- **Host-range prediction** using a bundled pre-trained two-tower model
+- **PTU assignment** using Mash-based comparison against the versioned PlasRiP reference database
+- **PGG contextualization** for PTUs that belong to higher-order plasmid genome groups
+- **Observed PTU host context** reported separately from model-predicted host spectra
 - **AMR detection** using ABRicate-compatible databases
 - **Replicon typing** using PlasmidFinder/ABRicate-style screening
 - **Mobility prediction** using Prodigal and MacSyFinder/CONJscan-based detection
-- **Integrated reporting** through `core_summary.tsv`, `annotation_summary.tsv`, and `summary.tsv`
-- **Clearer validation errors** for missing inputs, invalid FASTA files, missing model resources, and missing PTU sketch directories
+- **Compact 25-column `summary.tsv`** for routine interpretation, with detailed diagnostics retained in module-specific outputs
+- **Versioned external reference database** with schema validation and Mash-index compatibility checks
 
 ---
 
@@ -52,113 +54,198 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates host-range pre
 
 ![PlasRiP workflow overview](docs/images/workflow_overview.jpg)
 
-PlasRiP accepts plasmid FASTA or multi-FASTA files, validates the input, initializes per-plasmid workspaces, and runs two core analyses: **host-range prediction** and **PTU assignment**. Optional annotation modules then detect AMR genes, plasmid replicons, and mobility systems. Module-level outputs are finally merged into an integrated summary report.
+PlasRiP accepts plasmid FASTA or multi-FASTA files, validates the input, and performs two core analyses: **model-based host-range prediction** and **database-backed PTU assignment**. Assigned PTUs are linked to PGGs when applicable. Optional annotation modules then detect AMR genes, plasmid replicons, and mobility systems. Module-level outputs are merged into an integrated final summary.
+
+The two host concepts are intentionally separated:
+
+- `Predicted_*` fields describe the **model-predicted host spectrum of the query plasmid**.
+- `PTU_observed_*` fields describe the **observed host distribution of reference plasmids belonging to the assigned PTU**.
 
 ---
 
 ## Installation
 
-### Recommended: conda installation
+PlasRiP is designed for Linux. The Python package and the external bioinformatics tools are installed separately.
 
-Create a clean environment and install PlasRiP:
+### Recommended for the GitHub v0.2.0 release
+
+Create a clean conda environment containing the required external command-line tools:
 
 ```bash
-conda create -n plasrip python=3.11 -y
+conda create -n plasrip \
+  -c conda-forge -c bioconda \
+  python=3.10 \
+  mash=2.3 \
+  abricate \
+  prodigal \
+  macsyfinder=2.1.4 \
+  pip -y
+
 conda activate plasrip
-conda install -c changan522 -c conda-forge -c bioconda plasrip=0.1.1
+```
+
+Install the v0.2.0 wheel from the GitHub software release:
+
+```bash
+python -m pip install \
+  https://github.com/changan522/PlasRiP/releases/download/v0.2.0/plasrip-0.2.0-py3-none-any.whl
 ```
 
 Verify the installation:
 
 ```bash
-plasrip --help
 plasrip version
+plasrip --help
 plasrip models --json
 ```
 
-In v0.1.1, the packaged host-range model is resolved automatically. Users normally do **not** need to provide `--model-dir` when using the default bundled model.
+Check external tools:
+
+```bash
+mash --version
+abricate --version
+prodigal -v
+macsyfinder --version
+```
+
+For ABRicate-based modules, also confirm that the required databases are available:
+
+```bash
+abricate --list
+```
 
 ### Installation from source
 
-Use this option only if you want to run PlasRiP from source code or modify the package.
-
 ```bash
-git clone https://github.com/changan522/PlasRiP.git
+git clone --branch v0.2.0 https://github.com/changan522/PlasRiP.git
 cd PlasRiP
 conda env create -f environment.yml
 conda activate plasrip
-pip install . --no-deps
+python -m pip install . --no-deps
 ```
 
 For editable development mode:
 
 ```bash
-pip install -e . --no-deps
+python -m pip install -e . --no-deps
 ```
 
 ---
 
-## Required external resource: PTU sketch library
+## Required reference database
 
-PTU assignment requires an external PTU sketch library. This library is distributed separately as a GitHub Release asset and is **not bundled** inside the conda package.
+PTU assignment and PGG contextualization require the external **PlasRiP Reference Database v2.0**. The database is versioned independently from the software and is not bundled inside the Python/conda package.
 
-Download and extract the PTU sketch library:
+Database release page:
+
+<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
+
+The v2.0 database contains:
+
+- 64,391 reference plasmids
+- 52,591 plasmids assigned to 5,975 PTUs
+- 11,800 reference plasmids without stable PTU assignment
+- 4,152 PTUs organized into 185 PGGs
+
+### Download
 
 ```bash
 mkdir -p ~/plasrip_resources
 cd ~/plasrip_resources
 
-wget -O PlasRiP_PTU_sketch_library_v0.1.1.tar.gz \
-  https://github.com/changan522/PlasRiP/releases/download/v0.1.1/PlasRiP_PTU_sketch_library_v0.1.1.tar.gz
-
-wget -O PlasRiP_PTU_sketch_library_v0.1.1.sha256 \
-  https://github.com/changan522/PlasRiP/releases/download/v0.1.1/PlasRiP_PTU_sketch_library_v0.1.1.sha256
-
-sha256sum -c PlasRiP_PTU_sketch_library_v0.1.1.sha256
-tar -xzf PlasRiP_PTU_sketch_library_v0.1.1.tar.gz
+wget https://github.com/changan522/PlasRiP/releases/download/database-v2.0/PlasRiP_reference_database_v2.0.zip
+wget https://github.com/changan522/PlasRiP/releases/download/database-v2.0/PlasRiP_reference_database_v2.0.zip.sha256
 ```
 
-Identify the extracted top-level directory and use it as `--rep-dir`:
+Verify the downloaded archive:
 
 ```bash
-PTU_REP_DIR=$(tar -tzf PlasRiP_PTU_sketch_library_v0.1.1.tar.gz | head -1 | cut -d/ -f1)
-echo "$PTU_REP_DIR"
+sha256sum -c PlasRiP_reference_database_v2.0.zip.sha256
 ```
 
-In the examples below, the PTU sketch directory is referenced as:
+A successful check should report:
+
+```text
+PlasRiP_reference_database_v2.0.zip: OK
+```
+
+Extract the database:
 
 ```bash
-~/plasrip_resources/${PTU_REP_DIR}
+unzip PlasRiP_reference_database_v2.0.zip
 ```
 
-The release asset also contains a small resource note:
+The database root should contain:
+
+```text
+PlasRiP_reference_database_v2.0/
+├── mash_index/
+├── plasmid_reference_index.tsv
+├── PTU_metadata.tsv
+├── PGG_metadata.tsv
+├── database_manifest.tsv
+├── database_QC_report.tsv
+├── checksums.sha256
+└── README.md
+```
+
+### Configure the database path
+
+Option 1 — set the environment variable once per shell/session:
 
 ```bash
-wget -O README_PTU_sketch_library.txt \
-  https://github.com/changan522/PlasRiP/releases/download/v0.1.1/README_PTU_sketch_library.txt
+export PLASRIP_DATABASE=~/plasrip_resources/PlasRiP_reference_database_v2.0
 ```
+
+Option 2 — provide the database explicitly to PTU-related commands:
+
+```bash
+--database ~/plasrip_resources/PlasRiP_reference_database_v2.0
+```
+
+Validate database metadata and representative sketches:
+
+```bash
+plasrip database --check
+```
+
+Validate the complete Mash index:
+
+```bash
+plasrip database --check --deep
+```
+
+The database manifest fixes the reference Mash configuration (Mash 2.3, k=21, sketch size=1000, seed=42). Query sketches are checked against these parameters before PTU assignment.
 
 ---
 
 ## Quick start
 
-### 1. Check installation and model resources
+### 1. Check software and database
 
 ```bash
 plasrip version
 plasrip models --json
+plasrip database --check
 ```
-
-`plasrip models --json` reports the installed version, external dependency status, and resolved host-range model directory.
 
 ### 2. Run the full workflow
 
-The recommended entry point for routine plasmid analysis is `plasrip run`, which integrates host-range prediction, PTU assignment, optional annotation modules, and final summary generation.
+With `PLASRIP_DATABASE` already set:
 
 ```bash
 plasrip run \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --rep-dir ~/plasrip_resources/${PTU_REP_DIR} \
+  -o run_out \
+  -t 8
+```
+
+Or specify the database explicitly:
+
+```bash
+plasrip run \
+  -i examples/plasmid_genomes/pCZ2103-1.fasta \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
   -o run_out \
   -t 8
 ```
@@ -168,7 +255,7 @@ Disable optional annotation modules if needed:
 ```bash
 plasrip run \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --rep-dir ~/plasrip_resources/${PTU_REP_DIR} \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
   -o run_out \
   --no-amr \
   --no-replicon \
@@ -178,11 +265,10 @@ plasrip run \
 ### 3. Inspect the main output
 
 ```bash
-ls run_out
 cat run_out/summary.tsv
 ```
 
-The final integrated output is `summary.tsv`.
+`summary.tsv` is intentionally compact (25 columns). Detailed host-prediction diagnostics remain in `hostrange.tsv`; PTU assignment evidence remains in `ptu.tsv`; detailed PTU/PGG reference context remains in `core_summary.tsv`.
 
 ---
 
@@ -200,17 +286,18 @@ Available subcommands:
 |---|---|
 | `plasrip run` | Run the full integrated workflow |
 | `plasrip predict` | Predict plasmid host range |
-| `plasrip assign` | Assign plasmids to PTUs |
-| `plasrip core` | Run host-range prediction and PTU assignment |
-| `plasrip annotate` | Run annotation modules |
+| `plasrip assign` | Assign plasmids to PTUs and report PGG context |
+| `plasrip core` | Run host-range prediction plus PTU/PGG assignment |
+| `plasrip annotate` | Run AMR, replicon, and mobility annotation |
+| `plasrip database` | Validate and inspect a reference database |
 | `plasrip version` | Print version information |
-| `plasrip models` | Inspect dependency and model-resource status |
+| `plasrip models` | Inspect dependency, model, and database availability |
 
-Legacy entry points such as `PlasRip`, `PlasRip-predict`, `PlasRip-core`, and `PlasRip-run` are retained for compatibility, but `plasrip` is recommended.
+Legacy executable names are retained where applicable for compatibility, but `plasrip` is recommended.
 
 ### Host-range prediction only
 
-Run host-range prediction only. In v0.1.1, the bundled host-range model is detected automatically, so `--model-dir` is not required for the default packaged model.
+The bundled host-range model is discovered automatically, so `--model-dir` is not required for the default model.
 
 ```bash
 plasrip predict \
@@ -219,43 +306,35 @@ plasrip predict \
   -t 8
 ```
 
-Use a custom host-range model only when needed:
+Use `--model-dir` only for a custom host-range model.
 
-```bash
-plasrip predict \
-  -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  -o predict_out \
-  --model-dir /path/to/custom_hostrange_model \
-  -t 8
-```
-
-### PTU assignment only
-
-PTU assignment requires the downloaded PTU sketch library.
+### PTU/PGG assignment only
 
 ```bash
 plasrip assign \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  -r ~/plasrip_resources/${PTU_REP_DIR} \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
   -o ptu.tsv \
   -t 8
 ```
 
-### Core analysis
+The PTU cutoff defaults to the value stored in `database_manifest.tsv`. It can be supplied explicitly when required:
 
-Run host-range prediction and PTU assignment together, without optional annotation modules.
+```bash
+--ptu-threshold 0.05
+```
+
+### Core analysis
 
 ```bash
 plasrip core \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --rep-dir ~/plasrip_resources/${PTU_REP_DIR} \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
   -o core_out \
   -t 8
 ```
 
 ### Annotation-only workflow
-
-Run only the annotation modules for AMR detection, replicon typing, and mobility prediction.
 
 ```bash
 plasrip annotate \
@@ -264,46 +343,40 @@ plasrip annotate \
   -t 8
 ```
 
-### Inspect installation, dependencies, and model resources
+### Reference-database validation
 
 ```bash
-plasrip models --json
+plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v2.0
+```
+
+Full Mash-index validation:
+
+```bash
+plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v2.0 --deep
 ```
 
 ---
 
 ## Input requirements
 
-### Plasmid sequence input
+PlasRiP accepts FASTA or multi-FASTA input. Each input file must contain at least one FASTA record beginning with `>`.
 
-PlasRiP accepts FASTA or multi-FASTA files:
-
-```bash
--i plasmid1.fasta
--i plasmid1.fasta plasmid2.fasta
-```
-
-Each input file should contain at least one FASTA record beginning with `>`.
-
-### Input validation
-
-PlasRiP v0.1.1 reports clearer errors for:
-
-- non-existent FASTA files
-- empty FASTA files
-- invalid FASTA files without a `>` record header
-- directory paths passed where files are expected
-- literal wildcard patterns such as `*.fasta` that were not expanded by the shell
-
-### PTU sketch directory
-
-PTU-related commands require a PTU sketch directory:
+Examples:
 
 ```bash
---rep-dir ~/plasrip_resources/${PTU_REP_DIR}
+plasrip run -i plasmid.fasta -o run_out
 ```
 
-Download and extract the PTU sketch library before running `assign`, `core`, or `run`. See [Required external resource: PTU sketch library](#required-external-resource-ptu-sketch-library).
+```bash
+plasrip run -i plasmid1.fasta plasmid2.fasta -o run_out
+```
+
+PlasRiP validates missing, empty, malformed, and unexpanded wildcard input paths before analysis.
+
+PTU-related commands (`assign`, `core`, and `run`) require either:
+
+- `--database /path/to/PlasRiP_reference_database_v2.0`, or
+- the `PLASRIP_DATABASE` environment variable.
 
 ---
 
@@ -311,13 +384,13 @@ Download and extract the PTU sketch library before running `assign`, `core`, or 
 
 ### Host-range model
 
-The default host-range model resources are packaged under:
+The default host-range model is bundled under:
 
 ```text
 plasrip/data/hostrange/
 ```
 
-Typical required files include:
+Required model files include:
 
 - `two_tower_best_3.2.pth`
 - `host_profiles.joblib`
@@ -326,44 +399,34 @@ Typical required files include:
 
 Model-directory resolution follows this priority:
 
-1. `--model-dir <DIR>` if explicitly provided
-2. `PLASRIP_MODEL_DIR` environment variable if set
-3. bundled package directory `plasrip/data/hostrange`
+1. `--model-dir <DIR>`
+2. `PLASRIP_MODEL_DIR`
+3. bundled `plasrip/data/hostrange`
 
-This allows PlasRiP to work both from a source checkout and from a conda-installed package.
+### PTU/PGG reference resources
 
-### PTU resources
+PTU/PGG metadata are **not bundled in the software package** in v0.2.0. They are provided by the external versioned reference database:
 
-PlasRiP packages PTU metadata files, including:
+- `mash_index/`
+- `plasmid_reference_index.tsv`
+- `PTU_metadata.tsv`
+- `PGG_metadata.tsv`
+- `database_manifest.tsv`
 
-- `PTU-metadata.csv`
-- `PTUmember.csv`
-- `PTU_info.tsv`
+Database release:
 
-Mash sketch resources for PTU assignment are distributed separately as GitHub Release assets:
-
-- `PlasRiP_PTU_sketch_library_v0.1.1.tar.gz`
-- `PlasRiP_PTU_sketch_library_v0.1.1.sha256`
-- `README_PTU_sketch_library.txt`
-
-Download link:
-
-```text
-https://github.com/changan522/PlasRiP/releases/download/v0.1.1/PlasRiP_PTU_sketch_library_v0.1.1.tar.gz
-```
-
-After extraction, provide the extracted directory to PlasRiP through `--rep-dir`.
+<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
 
 ### External tools
 
-Some modules depend on external command-line tools:
+The following command-line tools are used by PlasRiP:
 
-- `mash` for PTU assignment
-- `abricate` for AMR and replicon screening
-- `prodigal` for ORF prediction
-- `macsyfinder` for mobility prediction
+- `mash` — PTU assignment
+- `abricate` — AMR and replicon screening
+- `prodigal` — ORF prediction
+- `macsyfinder` — mobility prediction
 
-These dependencies are handled by the recommended conda installation workflow.
+The v2.0 reference database was generated with **Mash 2.3**.
 
 ---
 
@@ -373,136 +436,193 @@ Typical outputs include:
 
 | Output | Description |
 |---|---|
-| `hostrange.tsv` | Main host-range prediction table |
+| `hostrange.tsv` | Detailed model-based host-range prediction |
 | `hostrange.top_hits.tsv` | Top-ranked host candidates |
 | `hostrange.taxonomy.tsv` | Taxonomic summary of predicted hosts |
 | `hostrange.set.tsv` | Predicted host-set output |
-| `ptu.tsv` | PTU assignment table |
-| `ptu.tsv.hits.tsv` | PTU hit-level results |
+| `ptu.tsv` | PTU assignment plus PGG ID/status |
+| `ptu.tsv.hits.tsv` | Candidate PTU hit-level results |
 | `amr.tsv` | AMR gene hits |
 | `plasmidfinder.tsv` | Replicon/Inc-type hits |
 | `mobility_summary.tsv` | Mobility prediction summary |
-| `core_summary.tsv` | Integrated host-range and PTU summary |
-| `annotation_summary.tsv` | Integrated annotation summary |
-| `summary.tsv` | Final integrated report |
-| `PlasRip.log` | Workflow log file |
+| `core_summary.tsv` | Detailed host prediction plus PTU/PGG reference context |
+| `annotation_summary.tsv` | Integrated functional-annotation summary |
+| `summary.tsv` | Compact 25-column final integrated report |
+| `PlasRip.log` | Workflow log |
 
-A typical full-workflow output directory contains:
+The final `summary.tsv` columns are:
 
 ```text
-run_out/
-├── hostrange.tsv
-├── hostrange.top_hits.tsv
-├── hostrange.taxonomy.tsv
-├── ptu.tsv
-├── ptu.tsv.hits.tsv
-├── amr.tsv
-├── plasmidfinder.tsv
-├── mobility_summary.tsv
-├── core_summary.tsv
-├── annotation_summary.tsv
-├── summary.tsv
-└── PlasRip.log
+PLASMID
+Predicted_host_top1
+Predicted_host_top1_score
+Predicted_host_set
+Predicted_host_set_size
+Predicted_host_range_class
+PTU
+PGG_ID
+PGG_assignment_status
+PTU_assignment_method
+PTU_candidate_hits
+PTU_closest_rep_dist
+PTU_n_plasmids
+PTU_observed_host_range_rank
+PTU_observed_dominant_taxon
+PTU_observed_n_host_species
+PTU_observed_top_host_species
+PTU_observed_top_host_species_coverage
+PTU_dominant_replicon
+PTU_dominant_mobility
+AMR_hits
+AMR_genes
+REPLICON_hits
+REPLICON_genes
+MOB
 ```
+
+`Predicted_host_confidence` is not reported in v0.2.0; raw model scores and host-set outputs are retained instead.
 
 ---
 
 ## Troubleshooting
 
-### `Input FASTA file not found`
+### Reference database not found
 
-Check that the input path exists. Use an absolute path if needed.
+Set:
 
-### `Invalid FASTA file`
+```bash
+export PLASRIP_DATABASE=/path/to/PlasRiP_reference_database_v2.0
+```
 
-Confirm that the file is a text FASTA file and contains at least one header line beginning with `>`.
+or provide `--database` explicitly.
 
-### `Input FASTA path was not expanded by the shell`
+Then run:
 
-A wildcard such as `*.fasta` was passed literally. Expand the file list in the shell or pass explicit file paths.
+```bash
+plasrip database --check
+```
 
-### `Host-range model directory not found` or `Host-range model directory is incomplete`
+### Database or Mash sketch incompatibility
 
 Run:
+
+```bash
+plasrip database --check --deep
+```
+
+PlasRiP validates database schema and Mash parameters before PTU assignment. The v2.0 reference index expects Mash 2.3 with k=21, sketch size=1000, and seed=42.
+
+### Host-range model directory not found or incomplete
 
 ```bash
 plasrip models --json
 ```
 
-Then check the reported model directory. If using a custom model, verify that the required `.pth` and `.joblib` files are present.
-
-### `PTU sketch directory not found`
-
-Check that the PTU sketch library has been downloaded and extracted, then confirm that `--rep-dir` points to the extracted sketch directory.
+If using a custom model, confirm that the required `.pth` and `.joblib` files are present.
 
 ### External dependency missing
 
-Run:
-
 ```bash
-plasrip models --json
+which mash
+which abricate
+which prodigal
+which macsyfinder
 ```
 
-Then confirm that the active conda environment contains required tools such as `mash`, `abricate`, `prodigal`, and `macsyfinder`.
+The external executables are not installed by `pip` itself; use conda/bioconda as described under [Installation](#installation).
+
+### ABRicate database unavailable
+
+```bash
+abricate --list
+```
+
+Confirm that the AMR and PlasmidFinder databases required by your workflow are available in the active environment.
+
+---
+
+## Python API
+
+The v0.2.0 package exposes the reference-database interface and major workflows:
+
+```python
+import plasrip
+
+report = plasrip.validate_reference_database(
+    "/path/to/PlasRiP_reference_database_v2.0"
+)
+
+result = plasrip.run_pipeline(
+    input_fastas=["plasmid.fasta"],
+    database_dir="/path/to/PlasRiP_reference_database_v2.0",
+    out_dir="run_out",
+)
+```
+
+The exported database helpers include:
+
+- `PlasRipReferenceDatabase`
+- `load_reference_database`
+- `validate_reference_database`
 
 ---
 
 ## Developer and maintainer notes
 
-The following commands are intended for maintainers, not routine users.
+Run the test suite:
 
-### Local conda build
+```bash
+pytest -q
+```
+
+Build wheel and source distribution:
+
+```bash
+python -m pip install build
+python -m build
+```
+
+Local conda build:
 
 ```bash
 conda install -n base -c conda-forge conda-build anaconda-client
 conda build conda.recipe
 ```
 
-### Local package test
-
-```bash
-conda create -n plasrip-test python=3.11 -y
-conda activate plasrip-test
-conda install -c file://$(conda info --base)/conda-bld -c conda-forge -c bioconda plasrip=0.1.1
-plasrip version
-plasrip models --json
-```
-
-### Version and release helper files
-
-Useful files for release preparation include:
-
-- `VERSION`
-- `CHANGELOG.md`
-- `RELEASE_NOTES_v0.1.1.md`
-- `CONDA_RELEASE_GUIDE.md`
-- `ANACONDA_UPLOAD.md`
-- `TAGGING_AND_RELEASE.md`
-- `scripts/check_version_sync.py`
-
-### Project structure
+Project layout:
 
 ```text
 PlasRiP/
 ├── src/plasrip/               # main Python package
-├── src/plasrip/data/          # packaged metadata and model resources
+├── src/plasrip/data/          # bundled host model and CONJScan resources only
 ├── examples/                  # example plasmid FASTA files
 ├── tests/                     # test suite
-├── scripts/                   # release and validation helpers
-├── conda.recipe/              # conda recipe for package building
+├── scripts/                   # validation/release helpers
+├── conda.recipe/              # conda recipe
 ├── docs/images/               # README figures
 ├── environment.yml
+├── pyproject.toml
 ├── README.md
 ├── CHANGELOG.md
-├── RELEASE_NOTES_v0.1.1.md
+├── RELEASE_NOTES_v0.2.0.md
 └── VERSION
 ```
+
+The PTU/PGG reference database is intentionally maintained outside `src/plasrip/data/`.
 
 ---
 
 ## Citation
 
-A formal citation will be added when the corresponding manuscript or archived software release becomes available. For now, please cite the GitHub repository and version number if you use PlasRiP in your work.
+A formal citation will be added when the associated manuscript is published. Until then, please cite the PlasRiP GitHub repository and the software/database versions used in the analysis.
+
+Software repository:
+
+<https://github.com/changan522/PlasRiP>
+
+Reference database v2.0:
+
+<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
 
 ---
 
@@ -515,4 +635,4 @@ PlasRiP is released under the MIT License. See [LICENSE.txt](LICENSE.txt) for de
 ## Contact
 
 **Maintainer:** Chang'an Li  
-**Repository:** https://github.com/changan522/PlasRiP
+**Repository:** <https://github.com/changan522/PlasRiP>

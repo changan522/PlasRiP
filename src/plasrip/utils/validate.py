@@ -12,6 +12,7 @@ from ..config import (
     get_hostrange_data_dir,
 )
 from ..exceptions import PlasRipConfigError, PlasRipDependencyError, PlasRipModelError
+from ..database import validate_database_dir as _validate_database_dir
 
 
 def check_external_dependency(cmd: str) -> bool:
@@ -132,11 +133,9 @@ def validate_model_dir(model_dir: str | None) -> dict[str, str | None]:
         "cache/plasmid_codon_scaler.joblib": scaler_path,
     }
 
-def validate_rep_dir(rep_dir: str) -> str:
-    root = Path(rep_dir).resolve()
-    if not root.is_dir():
-        raise PlasRipConfigError(f"PTU sketch directory not found: {root}")
-    return str(root)
+def validate_database_dir(database_dir: str | None, check_sketches: bool = False) -> dict[str, object]:
+    """Validate the external PlasRiP reference database."""
+    return _validate_database_dir(database_dir, check_sketches=check_sketches)
 
 
 def validate_out_dir(out_dir: str, overwrite: bool = False) -> str:
