@@ -19,3 +19,4 @@ dependencies:
   - macsyfinder=2.1.4
   - prodigal
   - pytest>=7.0
+  - tomli>=2.0
