@@ -18,21 +18,21 @@ def test_reorder_columns_keeps_extra_columns():
     assert out.loc[0, "extra"] == 1
 
 
-def test_step5_ptu_columns_prioritize_ptu_and_pgg_identifiers():
-    assert schemas.PTU_COLUMNS[:6] == [
+def test_step5_mpc_columns_prioritize_mpc_and_pgg_identifiers():
+    assert schemas.MPC_COLUMNS[:6] == [
         "PLASMID",
-        "PTU",
+        "MPC",
         "PGG_ID",
         "PGG_assignment_status",
-        "PTU_hits",
+        "MPC_hits",
         "how_assigned",
     ]
 
 
-def test_step5_ptu_hits_schema_includes_pgg_status():
-    assert schemas.PTU_HITS_COLUMNS == [
+def test_step5_mpc_hits_schema_includes_pgg_status():
+    assert schemas.MPC_HITS_COLUMNS == [
         "PLASMID",
-        "PTU_ID",
+        "MPC_ID",
         "PGG_ID",
         "PGG_assignment_status",
         "Representative",
@@ -42,22 +42,22 @@ def test_step5_ptu_hits_schema_includes_pgg_status():
 
 def test_step6_core_summary_layers_are_explicitly_separated():
     predicted = [c for c in schemas.CORE_SUMMARY_COLUMNS if c.startswith("Predicted_")]
-    observed = [c for c in schemas.CORE_SUMMARY_COLUMNS if c.startswith("PTU_observed_")]
+    observed = [c for c in schemas.CORE_SUMMARY_COLUMNS if c.startswith("MPC_observed_")]
     pgg = [c for c in schemas.CORE_SUMMARY_COLUMNS if c.startswith("PGG_")]
 
     assert predicted
     assert observed
     assert pgg
-    assert "PTU_assignment_method" in schemas.CORE_SUMMARY_COLUMNS
-    assert "PTU_candidate_hits" in schemas.CORE_SUMMARY_COLUMNS
-    assert "PTU_closest_rep_dist" in schemas.CORE_SUMMARY_COLUMNS
+    assert "MPC_assignment_method" in schemas.CORE_SUMMARY_COLUMNS
+    assert "MPC_candidate_hits" in schemas.CORE_SUMMARY_COLUMNS
+    assert "MPC_closest_rep_dist" in schemas.CORE_SUMMARY_COLUMNS
     assert "how_assigned" not in schemas.CORE_SUMMARY_COLUMNS
-    assert "PTU_hits" not in schemas.CORE_SUMMARY_COLUMNS
+    assert "MPC_hits" not in schemas.CORE_SUMMARY_COLUMNS
     assert "closest_rep_dist" not in schemas.CORE_SUMMARY_COLUMNS
 
 
-def test_step6_standalone_ptu_schema_remains_step5_frozen():
-    assert "how_assigned" in schemas.PTU_COLUMNS
-    assert "PTU_hits" in schemas.PTU_COLUMNS
-    assert "closest_rep_dist" in schemas.PTU_COLUMNS
-    assert "PTU_assignment_method" not in schemas.PTU_COLUMNS
+def test_step6_standalone_mpc_schema_remains_step5_frozen():
+    assert "how_assigned" in schemas.MPC_COLUMNS
+    assert "MPC_hits" in schemas.MPC_COLUMNS
+    assert "closest_rep_dist" in schemas.MPC_COLUMNS
+    assert "MPC_assignment_method" not in schemas.MPC_COLUMNS

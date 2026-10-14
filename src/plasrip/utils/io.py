@@ -1,4 +1,4 @@
-"""General I/O helpers for PlasRiP v2."""
+"""General I/O helpers for PlasRiP."""
 
 from __future__ import annotations
 

@@ -1,14 +1,9 @@
-PlasRiP v0.2.1 release tree
+PlasRiP v0.3.0 release tree
 
 .
-./.github
-./.github/workflows
+./.github/
+./.github/workflows/
 ./.gitignore
-./.pytest_cache
-./.pytest_cache/.gitignore
-./.pytest_cache/CACHEDIR.TAG
-./.pytest_cache/README.md
-./.pytest_cache/v
 ./ANACONDA_UPLOAD.md
 ./CHANGELOG.md
 ./CONDA_RELEASE_GUIDE.md
@@ -18,21 +13,22 @@ PlasRiP v0.2.1 release tree
 ./RELEASE_NOTES_v0.1.1.md
 ./RELEASE_NOTES_v0.2.0.md
 ./RELEASE_NOTES_v0.2.1.md
+./RELEASE_NOTES_v0.3.0.md
 ./TAGGING_AND_RELEASE.md
 ./VERSION
-./conda.recipe
+./conda.recipe/
 ./conda.recipe/README_recipe_notes.txt
 ./conda.recipe/bld.bat
 ./conda.recipe/build.sh
 ./conda.recipe/conda_build_config.yaml
 ./conda.recipe/meta.yaml
-./docs
-./docs/images
+./docs/
+./docs/images/
 ./environment.yml
-./examples
-./examples/plasmid_genomes
+./examples/
+./examples/plasmid_genomes/
 ./pyproject.toml
-./scripts
+./scripts/
 ./scripts/build_conda_package.sh
 ./scripts/check_version_sync.py
 ./scripts/create_git_tag.sh
@@ -40,10 +36,9 @@ PlasRiP v0.2.1 release tree
 ./scripts/release_prep.sh
 ./scripts/upload_anaconda.sh
 ./scripts/verify_install.py
-./src
-./src/plasrip
-./tests
-./tests/__pycache__
+./src/
+./src/plasrip/
+./tests/
 ./tests/conftest.py
 ./tests/test_assign.py
 ./tests/test_cli.py

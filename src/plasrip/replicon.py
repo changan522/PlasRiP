@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Replicon typing module for PlasRiP v2."""
+"""Replicon typing module for PlasRiP."""
 
 from __future__ import annotations
 

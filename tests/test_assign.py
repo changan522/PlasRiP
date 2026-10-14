@@ -9,11 +9,11 @@ from plasrip import assign
 from plasrip.exceptions import PlasRipConfigError
 
 
-def _hit(ptu: str, dist: float, rep: str | None = None):
+def _hit(mpc: str, dist: float, rep: str | None = None):
     return {
         "plasmid": "query.fasta",
-        "PTU_ID": ptu,
-        "Representative": rep or f"rep_{ptu}",
+        "MPC_ID": mpc,
+        "Representative": rep or f"rep_{mpc}",
         "dist": dist,
     }
 
@@ -54,147 +54,147 @@ def test_mash_dist_multi_combines_batch_outputs(monkeypatch):
     ]
 
 
-def test_assign_ptu_no_hit_and_failed():
-    no_hit = assign.assign_ptu(
+def test_assign_mpc_no_hit_and_failed():
+    no_hit = assign.assign_mpc(
         "query.fasta", "query.msh", [], {}, 0.05, "mash", 1
     )
-    assert no_hit["ptu_assigned"] == "NA"
+    assert no_hit["mpc_assigned"] == "NA"
     assert no_hit["how_assigned"] == "no_hit"
 
-    failed = assign.assign_ptu(
+    failed = assign.assign_mpc(
         "query.fasta", None, [], {}, 0.05, "mash", 1
     )
-    assert failed["ptu_assigned"] == "NA"
+    assert failed["mpc_assigned"] == "NA"
     assert failed["how_assigned"] == "failed"
 
 
-def test_assign_ptu_full_member_path_is_preserved(monkeypatch):
+def test_assign_mpc_full_member_path_is_preserved(monkeypatch):
     monkeypatch.setattr(
         assign,
         "full_member_check",
         lambda *args, **kwargs: (True, 0.02, 0.01, 2, 1.0, 2, 0.01),
     )
-    result = assign.assign_ptu(
+    result = assign.assign_mpc(
         "query.fasta",
         "query.msh",
-        [_hit("PTU000001", 0.01)],
-        {"PTU000001": ["a.msh", "b.msh"]},
+        [_hit("MPC000001", 0.01)],
+        {"MPC000001": ["a.msh", "b.msh"]},
         0.05,
         "mash",
         1,
     )
-    assert result["ptu_assigned"] == "PTU000001"
+    assert result["mpc_assigned"] == "MPC000001"
     assert result["how_assigned"] == "all_members"
     assert result["all_member_n"] == 2
 
 
-def test_assign_ptu_single_candidate_rep_fallback_is_preserved(monkeypatch):
+def test_assign_mpc_single_candidate_rep_fallback_is_preserved(monkeypatch):
     monkeypatch.setattr(
         assign,
         "full_member_check",
         lambda *args, **kwargs: (False, 0.08, 0.05, 2, 0.5, 1, 0.02),
     )
-    result = assign.assign_ptu(
+    result = assign.assign_mpc(
         "query.fasta",
         "query.msh",
-        [_hit("PTU000001", 0.01)],
-        {"PTU000001": ["a.msh", "b.msh"]},
+        [_hit("MPC000001", 0.01)],
+        {"MPC000001": ["a.msh", "b.msh"]},
         0.05,
         "mash",
         1,
     )
-    assert result["ptu_assigned"] == "PTU000001"
-    assert result["how_assigned"] == "single_ptu_by_rep"
+    assert result["mpc_assigned"] == "MPC000001"
+    assert result["how_assigned"] == "single_mpc_by_rep"
 
 
-def test_assign_ptu_network_support_path_is_preserved(monkeypatch):
+def test_assign_mpc_network_support_path_is_preserved(monkeypatch):
     stats = {
-        "PTU000001": (False, 0.08, 0.04, 5, 0.8, 4, 0.025),
-        "PTU000002": (False, 0.09, 0.05, 5, 0.4, 2, 0.03),
+        "MPC000001": (False, 0.08, 0.04, 5, 0.8, 4, 0.025),
+        "MPC000002": (False, 0.09, 0.05, 5, 0.4, 2, 0.03),
     }
 
     def fake_full(query_msh, member_paths, threshold, mash_cmd, threads):
         return stats[member_paths[0]]
 
     monkeypatch.setattr(assign, "full_member_check", fake_full)
-    result = assign.assign_ptu(
+    result = assign.assign_mpc(
         "query.fasta",
         "query.msh",
-        [_hit("PTU000001", 0.02), _hit("PTU000002", 0.025)],
+        [_hit("MPC000001", 0.02), _hit("MPC000002", 0.025)],
         {
-            "PTU000001": ["PTU000001"],
-            "PTU000002": ["PTU000002"],
+            "MPC000001": ["MPC000001"],
+            "MPC000002": ["MPC000002"],
         },
         0.05,
         "mash",
         1,
     )
-    assert result["ptu_assigned"] == "PTU000001"
+    assert result["mpc_assigned"] == "MPC000001"
     assert result["how_assigned"] == "network_support"
     assert result["network_coverage"] == 0.8
 
 
-def test_assign_ptu_closest_rep_and_ambiguous_paths_are_preserved(monkeypatch):
+def test_assign_mpc_closest_rep_and_ambiguous_paths_are_preserved(monkeypatch):
     monkeypatch.setattr(
         assign,
         "full_member_check",
         lambda *args, **kwargs: (False, 0.09, 0.08, 2, 0.0, 0, None),
     )
     members = {
-        "PTU000001": ["a.msh", "b.msh"],
-        "PTU000002": ["c.msh", "d.msh"],
+        "MPC000001": ["a.msh", "b.msh"],
+        "MPC000002": ["c.msh", "d.msh"],
     }
 
-    closest = assign.assign_ptu(
+    closest = assign.assign_mpc(
         "query.fasta",
         "query.msh",
-        [_hit("PTU000001", 0.01), _hit("PTU000002", 0.03)],
+        [_hit("MPC000001", 0.01), _hit("MPC000002", 0.03)],
         members,
         0.05,
         "mash",
         1,
     )
-    assert closest["ptu_assigned"] == "PTU000001"
+    assert closest["mpc_assigned"] == "MPC000001"
     assert closest["how_assigned"] == "closest_rep"
 
-    ambiguous = assign.assign_ptu(
+    ambiguous = assign.assign_mpc(
         "query.fasta",
         "query.msh",
-        [_hit("PTU000001", 0.01), _hit("PTU000002", 0.015)],
+        [_hit("MPC000001", 0.01), _hit("MPC000002", 0.015)],
         members,
         0.05,
         "mash",
         1,
     )
-    assert ambiguous["ptu_assigned"] == "NA"
+    assert ambiguous["mpc_assigned"] == "NA"
     assert ambiguous["how_assigned"] == "ambiguous"
 
 
-def test_direct_assign_cli_uses_step2_ptu_threshold_name():
+def test_direct_assign_cli_uses_step2_mpc_threshold_name():
     args = assign.parse_args([
         "-i", "query.fasta",
         "--database", "/db",
-        "-o", "ptu.tsv",
-        "--ptu-threshold", "0.04",
+        "-o", "mpc.tsv",
+        "--mpc-threshold", "0.04",
     ])
-    assert args.ptu_threshold == 0.04
+    assert args.mpc_threshold == 0.04
     with pytest.raises(SystemExit):
         assign.parse_args([
             "-i", "query.fasta",
             "--database", "/db",
-            "-o", "ptu.tsv",
+            "-o", "mpc.tsv",
             "--threshold", "0.04",
         ])
 
 
 def test_run_assignment_rejects_invalid_cutoff_before_external_mash(monkeypatch):
     class FakeDB:
-        ptu_threshold = 0.05
+        mpc_threshold = 0.05
         mash_k = 21
         mash_sketch_size = 1000
         mash_seed = 42
         root = "/db"
-        database_version = "v2.0"
+        database_version = "v3.0"
         mash_index_dir = "/db/mash_index"
 
     monkeypatch.setattr(assign, "load_database", lambda *a, **k: FakeDB())
@@ -203,23 +203,23 @@ def test_run_assignment_rejects_invalid_cutoff_before_external_mash(monkeypatch)
     monkeypatch.setattr(assign, "validate_reference_sketch_sample", lambda *a, **k: [])
 
     with pytest.raises(PlasRipConfigError, match="within \\[0, 1\\]"):
-        assign.run_ptu_assignment(
+        assign.run_mpc_assignment(
             ["does-not-matter.fasta"], "/db", "out.tsv", threshold=1.1, show_progress=False
         )
 
 
-def test_run_ptu_assignment_uses_database_indexes_and_writes_summary(tmp_path, monkeypatch):
+def test_run_mpc_assignment_uses_database_indexes_and_writes_summary(tmp_path, monkeypatch):
     fasta = tmp_path / "query.fasta"
     fasta.write_text(">query\nACGTACGTACGT\n", encoding="utf-8")
-    output = tmp_path / "ptu.tsv"
+    output = tmp_path / "mpc.tsv"
 
     class FakeDB:
-        ptu_threshold = 0.05
+        mpc_threshold = 0.05
         mash_k = 21
         mash_sketch_size = 1000
         mash_seed = 42
         root = tmp_path / "db"
-        database_version = "v2.0"
+        database_version = "v3.0"
         mash_index_dir = tmp_path / "db" / "mash_index"
 
     fake_db = FakeDB()
@@ -240,20 +240,20 @@ def test_run_ptu_assignment_uses_database_indexes_and_writes_summary(tmp_path, m
         lambda *a, **k: (True, 0.02, 0.015, 2, 1.0, 2, 0.015),
     )
 
-    df = assign.run_ptu_assignment(
+    df = assign.run_mpc_assignment(
         [str(fasta)],
         str(fake_db.root),
         str(output),
         show_progress=False,
         _database=fake_db,
         _assignment_indexes=(
-            {"PTU000001": ["ref1.msh", "ref2.msh"]},
+            {"MPC000001": ["ref1.msh", "ref2.msh"]},
             ["ref1.msh"],
-            {"plasmid_fasta/ref1.fasta": ("PTU000001", "ref1")},
+            {"plasmid_fasta/ref1.fasta": ("MPC000001", "ref1")},
         ),
-        _ptu_meta_lookup={
-            "PTU000001": {
-                "PTU_ID": "PTU000001",
+        _mpc_meta_lookup={
+            "MPC000001": {
+                "MPC_ID": "MPC000001",
                 "PGG_ID": "PGG-000001",
                 "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
             }
@@ -261,17 +261,17 @@ def test_run_ptu_assignment_uses_database_indexes_and_writes_summary(tmp_path, m
     )
 
     assert output.is_file()
-    assert list(df.columns) == assign.PTU_COLUMNS
-    assert df.loc[0, "PTU"] == "PTU000001"
+    assert list(df.columns) == assign.MPC_COLUMNS
+    assert df.loc[0, "MPC"] == "MPC000001"
     assert df.loc[0, "PGG_ID"] == "PGG-000001"
     assert df.loc[0, "PGG_assignment_status"] == "ASSIGNED_STABLE_PGG"
     assert df.loc[0, "how_assigned"] == "all_members"
 
-    hits_path = tmp_path / "ptu.tsv.hits.tsv"
+    hits_path = tmp_path / "mpc.tsv.hits.tsv"
     assert hits_path.is_file()
     hits = __import__("pandas").read_csv(hits_path, sep="\t", keep_default_na=False)
-    assert list(hits.columns) == assign.PTU_HITS_COLUMNS
-    assert hits.loc[0, "PTU_ID"] == "PTU000001"
+    assert list(hits.columns) == assign.MPC_HITS_COLUMNS
+    assert hits.loc[0, "MPC_ID"] == "MPC000001"
     assert hits.loc[0, "PGG_ID"] == "PGG-000001"
     assert hits.loc[0, "PGG_assignment_status"] == "ASSIGNED_STABLE_PGG"
 
@@ -282,7 +282,7 @@ def test_ensure_sketch_builds_with_explicit_database_seed_k_and_size(tmp_path, m
     commands = []
 
     class FakeDB:
-        database_version = "v2.0"
+        database_version = "v3.0"
 
     def fake_run(cmd, check, capture_output, text):
         commands.append(cmd)
@@ -327,73 +327,73 @@ def test_ensure_sketch_rejects_incompatible_existing_query_sketch(tmp_path, monk
         )
 
 
-def test_step5_public_output_preserves_unassigned_pgg_status_for_assigned_ptu():
+def test_step5_public_output_preserves_unassigned_pgg_status_for_assigned_mpc():
     raw = [{
         "query": "query.fasta",
-        "n_ptu_hits": 1,
-        "ptu_assigned": "PTU000003",
+        "n_mpc_hits": 1,
+        "mpc_assigned": "MPC000003",
         "PGG_ID": "",
         "PGG_assignment_status": "UNASSIGNED_OUTSIDE_CONSENSUS_SPACE",
         "how_assigned": "closest_rep",
         "closest_rep_dist": 0.01,
-        "closest_ptu": "PTU000003",
+        "closest_mpc": "MPC000003",
         "closest_rep": "ref3",
-        "second_ptu": "NA",
+        "second_mpc": "NA",
         "second_rep_dist": "NA",
         "rep_dist_gap": "NA",
-        "all_member_ptu": "NA",
+        "all_member_mpc": "NA",
         "all_member_max_dist": "NA",
         "all_member_avg_dist": "NA",
         "all_member_n": "NA",
-        "network_ptu": "NA",
+        "network_mpc": "NA",
         "network_coverage": "NA",
         "network_mean_dist_leq_threshold": "NA",
         "network_n_within_threshold": "NA",
     }]
     out = assign._format_assignment_output(raw)
-    assert out.loc[0, "PTU"] == "PTU000003"
+    assert out.loc[0, "MPC"] == "MPC000003"
     assert out.loc[0, "PGG_ID"] == ""
     assert out.loc[0, "PGG_assignment_status"] == "UNASSIGNED_OUTSIDE_CONSENSUS_SPACE"
 
 
-def test_step5_public_output_marks_pgg_not_applicable_when_no_ptu():
+def test_step5_public_output_marks_pgg_not_applicable_when_no_mpc():
     raw = [{
         "query": "query.fasta",
-        "n_ptu_hits": 0,
-        "ptu_assigned": "NA",
+        "n_mpc_hits": 0,
+        "mpc_assigned": "NA",
         "how_assigned": "no_hit",
         "closest_rep_dist": "NA",
-        "closest_ptu": "NA",
+        "closest_mpc": "NA",
         "closest_rep": "NA",
-        "second_ptu": "NA",
+        "second_mpc": "NA",
         "second_rep_dist": "NA",
         "rep_dist_gap": "NA",
-        "all_member_ptu": "NA",
+        "all_member_mpc": "NA",
         "all_member_max_dist": "NA",
         "all_member_avg_dist": "NA",
         "all_member_n": "NA",
-        "network_ptu": "NA",
+        "network_mpc": "NA",
         "network_coverage": "NA",
         "network_mean_dist_leq_threshold": "NA",
         "network_n_within_threshold": "NA",
     }]
     out = assign._format_assignment_output(raw)
-    assert out.loc[0, "PTU"] == "NA"
+    assert out.loc[0, "MPC"] == "NA"
     assert out.loc[0, "PGG_ID"] == "NA"
-    assert out.loc[0, "PGG_assignment_status"] == "NOT_APPLICABLE_NO_PTU"
+    assert out.loc[0, "PGG_assignment_status"] == "NOT_APPLICABLE_NO_MPC"
 
 
 def test_step5_hits_output_contains_pgg_status_and_frozen_column_order():
     hits = [{
         "plasmid": "query.fasta",
-        "PTU_ID": "PTU000002",
+        "MPC_ID": "MPC000002",
         "PGG_ID": "",
         "PGG_assignment_status": "UNASSIGNED_NOT_ELIGIBLE",
         "Representative": "ref2",
         "dist": 0.02,
     }]
     out = assign._format_hits_output(hits)
-    assert list(out.columns) == assign.PTU_HITS_COLUMNS
+    assert list(out.columns) == assign.MPC_HITS_COLUMNS
     assert out.loc[0, "PLASMID"] == "query"
     assert out.loc[0, "PGG_assignment_status"] == "UNASSIGNED_NOT_ELIGIBLE"
 
@@ -401,4 +401,4 @@ def test_step5_hits_output_contains_pgg_status_and_frozen_column_order():
 def test_step5_empty_hits_output_still_has_public_schema():
     out = assign._format_hits_output([])
     assert out.empty
-    assert list(out.columns) == assign.PTU_HITS_COLUMNS
+    assert list(out.columns) == assign.MPC_HITS_COLUMNS

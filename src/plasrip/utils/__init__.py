@@ -1,1 +1,1 @@
-"""Utility helpers for PlasRiP v2."""
+"""Utility helpers for PlasRiP."""

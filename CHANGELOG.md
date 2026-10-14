@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.0 — 2026-10-14
+
+- Rename the Mash-based reference clusters from PTU to MPC throughout the current software interface.
+- Read MPC fields, metadata filenames and assignment statuses from Reference Database v3.0, schema 2.0.
+- Rename assignment outputs to `mpc.tsv` and `mpc.tsv.hits.tsv`, with MPC fields in combined reports.
+- Rename CLI options and Python API parameters to MPC terminology. This is an interface migration from v0.2.1.
+- Preserve assignment algorithms, Mash reference paths, model weights and application score-gap default (0.20).
+- Update wheel/build metadata and conda recipe to v0.3.0. Historical release notes retain their original terminology.
+
+
 All notable changes to PlasRiP are documented in this file.
 
 

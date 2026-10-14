@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from plasrip.core import _ptu_annotation_table, build_core_summary
+from plasrip.core import _mpc_annotation_table, build_core_summary
 from plasrip.schemas import CORE_SUMMARY_COLUMNS
 
 
 def _fake_db():
-    ptu = pd.DataFrame([
+    mpc = pd.DataFrame([
         {
-            "PTU_ID": "PTU000001",
+            "MPC_ID": "MPC000001",
             "representative_plasmid": "rep1",
             "n_plasmids": "38",
             "PGG_ID": "PGG-000005",
@@ -40,7 +40,7 @@ def _fake_db():
             "n_unique_virulence_genes": "4",
         },
         {
-            "PTU_ID": "PTU000003",
+            "MPC_ID": "MPC000003",
             "representative_plasmid": "rep3",
             "n_plasmids": "5",
             "PGG_ID": "",
@@ -72,9 +72,9 @@ def _fake_db():
     pgg = pd.DataFrame([
         {
             "PGG_ID": "PGG-000005",
-            "n_PTUs": "21",
+            "n_MPCs": "21",
             "n_plasmids": "300",
-            "anchor_PTU": "PTU000051",
+            "anchor_MPC": "MPC000051",
             "anchor_representative_plasmid": "rep51",
             "minimum_internal_support": "0.84375",
             "merge_with_parent_support": "0.5",
@@ -83,7 +83,7 @@ def _fake_db():
             "anchor_mean_within_group_Mash": "0.08",
         }
     ])
-    return SimpleNamespace(ptu_metadata=ptu, pgg_metadata=pgg)
+    return SimpleNamespace(mpc_metadata=mpc, pgg_metadata=pgg)
 
 
 def _hostrange(plasmid="query1"):
@@ -103,110 +103,110 @@ def _hostrange(plasmid="query1"):
     ])
 
 
-def test_step6_annotation_table_renames_observed_ptu_and_pgg_context():
-    ann = _ptu_annotation_table(_fake_db())
-    row = ann.loc[ann["PTU"] == "PTU000001"].iloc[0]
+def test_step6_annotation_table_renames_observed_mpc_and_pgg_context():
+    ann = _mpc_annotation_table(_fake_db())
+    row = ann.loc[ann["MPC"] == "MPC000001"].iloc[0]
 
-    assert row["PTU_observed_host_range_rank"] == "Family"
-    assert row["PTU_observed_top_host_species"] == "Enterobacter hormaechei"
-    assert row["PTU_observed_dominant_taxon"] == "Enterobacteriaceae"
-    assert row["PTU_mean_length_bp"] == "100000"
-    assert row["PTU_virulence_positive_fraction"] == "0.25"
-    assert row["PGG_n_PTUs"] == "21"
+    assert row["MPC_observed_host_range_rank"] == "Family"
+    assert row["MPC_observed_top_host_species"] == "Enterobacter hormaechei"
+    assert row["MPC_observed_dominant_taxon"] == "Enterobacteriaceae"
+    assert row["MPC_mean_length_bp"] == "100000"
+    assert row["MPC_virulence_positive_fraction"] == "0.25"
+    assert row["PGG_n_MPCs"] == "21"
     assert row["PGG_anchor_representative_plasmid"] == "rep51"
     assert row["PGG_effective_persistence_width"] == "0.34375"
 
 
 def test_step6_core_summary_keeps_predicted_and_observed_host_information_distinct():
-    ptu = pd.DataFrame([
+    mpc = pd.DataFrame([
         {
             "PLASMID": "query1",
-            "PTU": "PTU000001",
+            "MPC": "MPC000001",
             "PGG_ID": "PGG-000005",
             "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
-            "PTU_hits": 3,
+            "MPC_hits": 3,
             "how_assigned": "all_members",
             "closest_rep_dist": 0.012,
         }
     ])
-    ann = _ptu_annotation_table(_fake_db())
-    summary = build_core_summary(_hostrange(), ptu, ann)
+    ann = _mpc_annotation_table(_fake_db())
+    summary = build_core_summary(_hostrange(), mpc, ann)
     row = summary.iloc[0]
 
     assert list(summary.columns) == CORE_SUMMARY_COLUMNS
     assert row["Predicted_host_top1"] == "Klebsiella pneumoniae"
     assert row["Predicted_host_range_class"] == "broad"
-    assert row["PTU_observed_host_range_rank"] == "Family"
-    assert row["PTU_observed_top_host_species"] == "Enterobacter hormaechei"
-    assert row["PTU_assignment_method"] == "all_members"
-    assert row["PTU_candidate_hits"] == 3
-    assert row["PTU_closest_rep_dist"] == 0.012
+    assert row["MPC_observed_host_range_rank"] == "Family"
+    assert row["MPC_observed_top_host_species"] == "Enterobacter hormaechei"
+    assert row["MPC_assignment_method"] == "all_members"
+    assert row["MPC_candidate_hits"] == 3
+    assert row["MPC_closest_rep_dist"] == 0.012
     assert row["PGG_ID"] == "PGG-000005"
-    assert row["PGG_n_PTUs"] == "21"
+    assert row["PGG_n_MPCs"] == "21"
 
 
-def test_step6_ptu_without_stable_pgg_retains_reason_but_has_no_pgg_metrics():
-    ptu = pd.DataFrame([
+def test_step6_mpc_without_stable_pgg_retains_reason_but_has_no_pgg_metrics():
+    mpc = pd.DataFrame([
         {
             "PLASMID": "query2",
-            "PTU": "PTU000003",
+            "MPC": "MPC000003",
             "PGG_ID": "",
             "PGG_assignment_status": "UNASSIGNED_OUTSIDE_CONSENSUS_SPACE",
-            "PTU_hits": 1,
-            "how_assigned": "single_ptu_by_rep",
+            "MPC_hits": 1,
+            "how_assigned": "single_mpc_by_rep",
             "closest_rep_dist": 0.01,
         }
     ])
-    ann = _ptu_annotation_table(_fake_db())
-    summary = build_core_summary(_hostrange("query2"), ptu, ann)
+    ann = _mpc_annotation_table(_fake_db())
+    summary = build_core_summary(_hostrange("query2"), mpc, ann)
     row = summary.iloc[0]
 
-    assert row["PTU"] == "PTU000003"
+    assert row["MPC"] == "MPC000003"
     assert row["PGG_ID"] == ""
     assert row["PGG_assignment_status"] == "UNASSIGNED_OUTSIDE_CONSENSUS_SPACE"
-    assert row["PTU_observed_host_range_rank"] == "Species"
-    assert pd.isna(row["PGG_n_PTUs"])
+    assert row["MPC_observed_host_range_rank"] == "Species"
+    assert pd.isna(row["PGG_n_MPCs"])
 
 
-def test_step6_no_ptu_does_not_inherit_reference_metadata():
-    ptu = pd.DataFrame([
+def test_step6_no_mpc_does_not_inherit_reference_metadata():
+    mpc = pd.DataFrame([
         {
             "PLASMID": "query3",
-            "PTU": "NA",
+            "MPC": "NA",
             "PGG_ID": "NA",
-            "PGG_assignment_status": "NOT_APPLICABLE_NO_PTU",
-            "PTU_hits": 0,
+            "PGG_assignment_status": "NOT_APPLICABLE_NO_MPC",
+            "MPC_hits": 0,
             "how_assigned": "no_hit",
             "closest_rep_dist": None,
         }
     ])
-    ann = _ptu_annotation_table(_fake_db())
-    summary = build_core_summary(_hostrange("query3"), ptu, ann)
+    ann = _mpc_annotation_table(_fake_db())
+    summary = build_core_summary(_hostrange("query3"), mpc, ann)
     row = summary.iloc[0]
 
-    assert row["PTU"] == "NA"
-    assert row["PGG_assignment_status"] == "NOT_APPLICABLE_NO_PTU"
-    assert row["PTU_assignment_method"] == "no_hit"
-    assert pd.isna(row["PTU_observed_host_range_rank"])
-    assert pd.isna(row["PGG_n_PTUs"])
+    assert row["MPC"] == "NA"
+    assert row["PGG_assignment_status"] == "NOT_APPLICABLE_NO_MPC"
+    assert row["MPC_assignment_method"] == "no_hit"
+    assert pd.isna(row["MPC_observed_host_range_rank"])
+    assert pd.isna(row["PGG_n_MPCs"])
 
 
 def test_step6_core_summary_can_be_built_when_host_prediction_row_is_missing():
-    ptu = pd.DataFrame([
+    mpc = pd.DataFrame([
         {
             "PLASMID": "query4",
-            "PTU": "PTU000001",
+            "MPC": "MPC000001",
             "PGG_ID": "PGG-000005",
             "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
-            "PTU_hits": 1,
+            "MPC_hits": 1,
             "how_assigned": "closest_rep",
             "closest_rep_dist": 0.02,
         }
     ])
-    ann = _ptu_annotation_table(_fake_db())
-    summary = build_core_summary(pd.DataFrame(), ptu, ann)
+    ann = _mpc_annotation_table(_fake_db())
+    summary = build_core_summary(pd.DataFrame(), mpc, ann)
 
     assert len(summary) == 1
     assert summary.iloc[0]["PLASMID"] == "query4"
-    assert summary.iloc[0]["PTU"] == "PTU000001"
+    assert summary.iloc[0]["MPC"] == "MPC000001"
     assert pd.isna(summary.iloc[0]["Predicted_host_top1"])

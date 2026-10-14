@@ -13,9 +13,9 @@ from plasrip.schemas import CORE_SUMMARY_COLUMNS, SUMMARY_COLUMNS
 def _fake_db(tmp_path: Path):
     return SimpleNamespace(
         root=tmp_path / "db",
-        database_version="v2.0",
+        database_version="v3.0",
         schema_version="2.0",
-        ptu_metadata=pd.DataFrame([{"PTU_ID": "PTU000001"}]),
+        mpc_metadata=pd.DataFrame([{"MPC_ID": "MPC000001"}]),
         pgg_metadata=pd.DataFrame([{"PGG_ID": "PGG-000001"}]),
     )
 
@@ -49,8 +49,8 @@ def test_step7_api_database_wrappers_delegate(monkeypatch):
 def test_step7_core_accepts_preloaded_database_without_reloading(monkeypatch, tmp_path):
     db = _fake_db(tmp_path)
     assignment_indexes = object()
-    ptu_lookup = {"PTU000001": {}}
-    ptu_annotation = pd.DataFrame([{"PTU": "PTU000001"}])
+    mpc_lookup = {"MPC000001": {}}
+    mpc_annotation = pd.DataFrame([{"MPC": "MPC000001"}])
 
     def should_not_load(*args, **kwargs):
         raise AssertionError("load_database must not be called when _database is supplied")
@@ -73,19 +73,19 @@ def test_step7_core_accepts_preloaded_database_without_reloading(monkeypatch, tm
     def fake_assign(**kwargs):
         seen["database"] = kwargs.get("_database")
         seen["indexes"] = kwargs.get("_assignment_indexes")
-        seen["lookup"] = kwargs.get("_ptu_meta_lookup")
+        seen["lookup"] = kwargs.get("_mpc_meta_lookup")
         return pd.DataFrame([{
             "query": "query1",
-            "ptu_assigned": "PTU000001",
+            "mpc_assigned": "MPC000001",
             "PGG_ID": "PGG-000001",
             "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
-            "n_ptu_hits": 1,
+            "n_mpc_hits": 1,
             "how_assigned": "closest_rep",
             "closest_rep_dist": 0.01,
         }])
 
     monkeypatch.setattr(core, "run_host_prediction", fake_predict)
-    monkeypatch.setattr(core, "run_ptu_assignment", fake_assign)
+    monkeypatch.setattr(core, "run_mpc_assignment", fake_assign)
 
     result = core.run_core_analysis(
         input_fastas=["query1.fasta"],
@@ -96,15 +96,15 @@ def test_step7_core_accepts_preloaded_database_without_reloading(monkeypatch, tm
         overwrite=True,
         _database=db,
         _assignment_indexes=assignment_indexes,
-        _ptu_meta_lookup=ptu_lookup,
-        _ptu_annotation=ptu_annotation,
+        _mpc_meta_lookup=mpc_lookup,
+        _mpc_annotation=mpc_annotation,
     )
 
     assert seen["database"] is db
     assert seen["indexes"] is assignment_indexes
-    assert seen["lookup"] is ptu_lookup
+    assert seen["lookup"] is mpc_lookup
     assert list(result["core_summary"].columns) == CORE_SUMMARY_COLUMNS
-    assert result["core_summary"].iloc[0]["PTU_assignment_method"] == "closest_rep"
+    assert result["core_summary"].iloc[0]["MPC_assignment_method"] == "closest_rep"
 
 
 def test_step7_pipeline_loads_database_once_and_reuses_it(monkeypatch, tmp_path):
@@ -112,7 +112,7 @@ def test_step7_pipeline_loads_database_once_and_reuses_it(monkeypatch, tmp_path)
     calls = {"load": 0, "core": []}
     indexes = object()
     lookup = object()
-    annotation = pd.DataFrame([{"PTU": "PTU000001"}])
+    annotation = pd.DataFrame([{"MPC": "MPC000001"}])
 
     def fake_load(database_dir, check_sketches=True):
         calls["load"] += 1
@@ -122,8 +122,8 @@ def test_step7_pipeline_loads_database_once_and_reuses_it(monkeypatch, tmp_path)
 
     monkeypatch.setattr(pipeline, "load_database", fake_load)
     monkeypatch.setattr(pipeline, "build_assignment_indexes", lambda d: indexes)
-    monkeypatch.setattr(pipeline, "ptu_metadata_lookup", lambda d: lookup)
-    monkeypatch.setattr(pipeline, "_ptu_annotation_table", lambda d: annotation)
+    monkeypatch.setattr(pipeline, "mpc_metadata_lookup", lambda d: lookup)
+    monkeypatch.setattr(pipeline, "_mpc_annotation_table", lambda d: annotation)
 
     def fake_core(**kwargs):
         calls["core"].append(kwargs)
@@ -133,16 +133,16 @@ def test_step7_pipeline_loads_database_once_and_reuses_it(monkeypatch, tmp_path)
             "top_hits": pd.DataFrame(),
             "taxonomy": pd.DataFrame(),
             "set_df": pd.DataFrame(),
-            "ptu": pd.DataFrame(),
-            "ptu_hits": pd.DataFrame(),
+            "mpc": pd.DataFrame(),
+            "mpc_hits": pd.DataFrame(),
             "core_summary": pd.DataFrame([{
                 "PLASMID": plasmid,
-                "PTU": "PTU000001",
+                "MPC": "MPC000001",
                 "PGG_ID": "PGG-000001",
                 "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
-                "PTU_assignment_method": "closest_rep",
-                "PTU_candidate_hits": 1,
-                "PTU_closest_rep_dist": 0.01,
+                "MPC_assignment_method": "closest_rep",
+                "MPC_candidate_hits": 1,
+                "MPC_closest_rep_dist": 0.01,
             }]),
         }
 
@@ -179,8 +179,8 @@ def test_step7_pipeline_loads_database_once_and_reuses_it(monkeypatch, tmp_path)
     for kwargs in calls["core"]:
         assert kwargs["_database"] is db
         assert kwargs["_assignment_indexes"] is indexes
-        assert kwargs["_ptu_meta_lookup"] is lookup
-        assert kwargs["_ptu_annotation"] is annotation
+        assert kwargs["_mpc_meta_lookup"] is lookup
+        assert kwargs["_mpc_annotation"] is annotation
         assert kwargs["database_dir"] == str(db.root)
 
     assert len(result["summary"]) == 2

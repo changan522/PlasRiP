@@ -1,4 +1,4 @@
-"""Central configuration defaults for PlasRiP v2 (3.2 unified)."""
+"""Central configuration defaults for PlasRiP (3.2 unified)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 DEFAULT_THREADS = 1
 DEFAULT_TOPK = 10
-DEFAULT_PTU_THRESHOLD = 0.05
+DEFAULT_MPC_THRESHOLD = 0.05
 DEFAULT_AMR_DB = "ncbi"
 DEFAULT_TAX_LEVEL = "species"
 
@@ -32,8 +32,8 @@ DEFAULT_HOSTRANGE_TAXONOMY_OUT = "hostrange.taxonomy.tsv"
 DEFAULT_HOSTRANGE_SET_OUT = "hostrange.set.tsv"
 DEFAULT_HOSTRANGE_ALL_SCORES_OUT = "hostrange.all_scores.tsv"
 
-DEFAULT_PTU_OUT = "ptu.tsv"
-DEFAULT_PTU_HITS_SUFFIX = ".hits.tsv"
+DEFAULT_MPC_OUT = "mpc.tsv"
+DEFAULT_MPC_HITS_SUFFIX = ".hits.tsv"
 
 DEFAULT_AMR_OUT = "amr.tsv"
 DEFAULT_REPLICON_OUT = "plasmidfinder.tsv"
@@ -43,10 +43,10 @@ DEFAULT_CORE_SUMMARY_OUT = "core_summary.tsv"
 DEFAULT_ANNOTATION_SUMMARY_OUT = "annotation_summary.tsv"
 DEFAULT_SUMMARY_OUT = "summary.tsv"
 
-# External reference-database layout (v2.0 schema)
+# External reference-database layout (v3.0 release, schema 2.0)
 MASH_INDEX_SUBDIR = "mash_index"
 PLASMID_REFERENCE_INDEX_FILENAME = "plasmid_reference_index.tsv"
-PTU_METADATA_FILENAME = "PTU_metadata.tsv"
+MPC_METADATA_FILENAME = "MPC_metadata.tsv"
 PGG_METADATA_FILENAME = "PGG_metadata.tsv"
 DATABASE_MANIFEST_FILENAME = "database_manifest.tsv"
 

@@ -1,4 +1,4 @@
-"""PlasRiP v2 package exports."""
+"""PlasRiP package exports."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .api import (
     run_core_analysis,
     run_host_prediction,
     run_pipeline,
-    run_ptu_assignment,
+    run_mpc_assignment,
 )
 
 __all__ = [
@@ -18,10 +18,10 @@ __all__ = [
     "load_reference_database",
     "validate_reference_database",
     "run_host_prediction",
-    "run_ptu_assignment",
+    "run_mpc_assignment",
     "run_core_analysis",
     "run_annotation",
     "run_pipeline",
 ]
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"

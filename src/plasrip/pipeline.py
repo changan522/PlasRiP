@@ -1,4 +1,4 @@
-"""Full PlasRiP v2 workflow orchestrator.
+"""Full PlasRiP workflow orchestrator.
 
 The pipeline owns one validated reference-database object for the complete
 run and reuses it across all query plasmids. Nested modules remain quiet so
@@ -25,13 +25,13 @@ from .config import (
     DEFAULT_HOSTRANGE_TOP_HITS_OUT,
     DEFAULT_LOG_NAME,
     DEFAULT_MOBILITY_OUT,
-    DEFAULT_PTU_HITS_SUFFIX,
-    DEFAULT_PTU_OUT,
+    DEFAULT_MPC_HITS_SUFFIX,
+    DEFAULT_MPC_OUT,
     DEFAULT_REPLICON_OUT,
     DEFAULT_SUMMARY_OUT,
 )
-from .core import _ptu_annotation_table, run_core_analysis
-from .database import build_assignment_indexes, load_database, ptu_metadata_lookup
+from .core import _mpc_annotation_table, run_core_analysis
+from .database import build_assignment_indexes, load_database, mpc_metadata_lookup
 from .schemas import SUMMARY_COLUMNS, empty_summary_df, reorder_columns
 from .utils.console import (
     print_done,
@@ -109,8 +109,8 @@ def _reset_pipeline_outputs(out_root: Path, output_all_scores: bool = False) -> 
         DEFAULT_HOSTRANGE_TOP_HITS_OUT,
         DEFAULT_HOSTRANGE_TAXONOMY_OUT,
         DEFAULT_HOSTRANGE_SET_OUT,
-        DEFAULT_PTU_OUT,
-        f"{DEFAULT_PTU_OUT}{DEFAULT_PTU_HITS_SUFFIX}",
+        DEFAULT_MPC_OUT,
+        f"{DEFAULT_MPC_OUT}{DEFAULT_MPC_HITS_SUFFIX}",
         DEFAULT_CORE_SUMMARY_OUT,
         DEFAULT_AMR_OUT,
         DEFAULT_REPLICON_OUT,
@@ -129,8 +129,8 @@ def _append_results(results: dict, out_root: Path, output_all_scores: bool = Fal
     append_tsv(results.get("top_hits", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_TOP_HITS_OUT)
     append_tsv(results.get("taxonomy", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_TAXONOMY_OUT)
     append_tsv(results.get("set_df", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_SET_OUT)
-    append_tsv(results.get("ptu", pd.DataFrame()), out_root / DEFAULT_PTU_OUT)
-    append_tsv(results.get("ptu_hits", pd.DataFrame()), out_root / f"{DEFAULT_PTU_OUT}{DEFAULT_PTU_HITS_SUFFIX}")
+    append_tsv(results.get("mpc", pd.DataFrame()), out_root / DEFAULT_MPC_OUT)
+    append_tsv(results.get("mpc_hits", pd.DataFrame()), out_root / f"{DEFAULT_MPC_OUT}{DEFAULT_MPC_HITS_SUFFIX}")
     append_tsv(results.get("core_summary", pd.DataFrame()), out_root / DEFAULT_CORE_SUMMARY_OUT)
     append_tsv(results.get("amr", pd.DataFrame()), out_root / DEFAULT_AMR_OUT)
     append_tsv(results.get("replicon", pd.DataFrame()), out_root / DEFAULT_REPLICON_OUT)
@@ -152,8 +152,8 @@ def run_pipeline(
     tax_level: str = "species",
     range_threshold_narrow: float | None = None,
     range_threshold_broad: float | None = None,
-    ptu_threshold: float | None = None,
-    ptu_mash: str = "mash",
+    mpc_threshold: float | None = None,
+    mpc_mash: str = "mash",
     mash_k: int | None = None,
     mash_s: int | None = None,
     with_amr: bool = True,
@@ -185,8 +185,8 @@ def run_pipeline(
     top_hit_frames: list[pd.DataFrame] = []
     taxonomy_frames: list[pd.DataFrame] = []
     set_frames: list[pd.DataFrame] = []
-    ptu_frames: list[pd.DataFrame] = []
-    ptu_hit_frames: list[pd.DataFrame] = []
+    mpc_frames: list[pd.DataFrame] = []
+    mpc_hit_frames: list[pd.DataFrame] = []
     core_frames: list[pd.DataFrame] = []
     amr_frames: list[pd.DataFrame] = []
     rep_frames: list[pd.DataFrame] = []
@@ -201,11 +201,11 @@ def run_pipeline(
     try:
         # Resolve and validate the database once for the whole workflow.
         # Reusing these objects avoids re-reading the 64k-plasmid index and
-        # PTU/PGG metadata for every query plasmid.
+        # MPC/PGG metadata for every query plasmid.
         db = load_database(database_dir, check_sketches=True)
         assignment_indexes = build_assignment_indexes(db)
-        ptu_lookup = ptu_metadata_lookup(db)
-        ptu_annotation = _ptu_annotation_table(db)
+        mpc_lookup = mpc_metadata_lookup(db)
+        mpc_annotation = _mpc_annotation_table(db)
 
         _reset_pipeline_outputs(out_root, output_all_scores=output_all_scores)
         if not quiet:
@@ -214,7 +214,7 @@ def run_pipeline(
             print_info(f"total plasmids : {total}")
             print_info("mode           : per-plasmid workflow")
             print_info(f"database       : {db.database_version} (schema {db.schema_version})")
-            print_info(f"PTUs / PGGs    : {len(db.ptu_metadata)} / {len(db.pgg_metadata)}")
+            print_info(f"MPCs / PGGs    : {len(db.mpc_metadata)} / {len(db.pgg_metadata)}")
 
         for idx, fasta in enumerate(input_fastas, start=1):
             name = Path(fasta).name
@@ -238,8 +238,8 @@ def run_pipeline(
                     tax_level=tax_level,
                     range_threshold_narrow=range_threshold_narrow,
                     range_threshold_broad=range_threshold_broad,
-                    ptu_threshold=ptu_threshold,
-                    ptu_mash=ptu_mash,
+                    mpc_threshold=mpc_threshold,
+                    mpc_mash=mpc_mash,
                     mash_k=mash_k,
                     mash_s=mash_s,
                     output_all_scores=output_all_scores,
@@ -252,8 +252,8 @@ def run_pipeline(
                     show_header=False,
                     _database=db,
                     _assignment_indexes=assignment_indexes,
-                    _ptu_meta_lookup=ptu_lookup,
-                    _ptu_annotation=ptu_annotation,
+                    _mpc_meta_lookup=mpc_lookup,
+                    _mpc_annotation=mpc_annotation,
                 )
                 core_row = _first_row(core_results.get("core_summary", pd.DataFrame()))
 
@@ -265,13 +265,13 @@ def run_pipeline(
                     print_info(f"score delta           : {score_delta}")
                     _section_break()
 
-                    print_step(name, "PTU assignment")
-                    print_done(f"PTU                   : {_fmt(core_row.get('PTU'))}")
+                    print_step(name, "MPC assignment")
+                    print_done(f"MPC                   : {_fmt(core_row.get('MPC'))}")
                     print_done(f"PGG                   : {_fmt(core_row.get('PGG_ID'))}")
                     print_info(f"PGG status            : {_fmt(core_row.get('PGG_assignment_status'))}")
-                    print_done(f"assignment method     : {_fmt(core_row.get('PTU_assignment_method'))}")
-                    print_done(f"PTU hits              : {_fmt(core_row.get('PTU_candidate_hits'))}")
-                    print_info(f"closest rep dist      : {_fmt(core_row.get('PTU_closest_rep_dist'))}")
+                    print_done(f"assignment method     : {_fmt(core_row.get('MPC_assignment_method'))}")
+                    print_done(f"MPC hits              : {_fmt(core_row.get('MPC_candidate_hits'))}")
+                    print_info(f"closest rep dist      : {_fmt(core_row.get('MPC_closest_rep_dist'))}")
                     _section_break()
 
                 ann_results = run_annotation(
@@ -330,8 +330,8 @@ def run_pipeline(
                 top_hit_frames.append(results.get("top_hits", pd.DataFrame()))
                 taxonomy_frames.append(results.get("taxonomy", pd.DataFrame()))
                 set_frames.append(results.get("set_df", pd.DataFrame()))
-                ptu_frames.append(results.get("ptu", pd.DataFrame()))
-                ptu_hit_frames.append(results.get("ptu_hits", pd.DataFrame()))
+                mpc_frames.append(results.get("mpc", pd.DataFrame()))
+                mpc_hit_frames.append(results.get("mpc_hits", pd.DataFrame()))
                 core_frames.append(results.get("core_summary", pd.DataFrame()))
                 amr_frames.append(results.get("amr", pd.DataFrame()))
                 rep_frames.append(results.get("replicon", pd.DataFrame()))
@@ -364,8 +364,8 @@ def run_pipeline(
             "top_hits": pd.concat(top_hit_frames, ignore_index=True) if top_hit_frames else pd.DataFrame(),
             "taxonomy": pd.concat(taxonomy_frames, ignore_index=True) if taxonomy_frames else pd.DataFrame(),
             "set_df": pd.concat(set_frames, ignore_index=True) if set_frames else pd.DataFrame(),
-            "ptu": pd.concat(ptu_frames, ignore_index=True) if ptu_frames else pd.DataFrame(),
-            "ptu_hits": pd.concat(ptu_hit_frames, ignore_index=True) if ptu_hit_frames else pd.DataFrame(),
+            "mpc": pd.concat(mpc_frames, ignore_index=True) if mpc_frames else pd.DataFrame(),
+            "mpc_hits": pd.concat(mpc_hit_frames, ignore_index=True) if mpc_hit_frames else pd.DataFrame(),
             "core_summary": pd.concat(core_frames, ignore_index=True) if core_frames else pd.DataFrame(),
             "amr": pd.concat(amr_frames, ignore_index=True) if amr_frames else pd.DataFrame(),
             "replicon": pd.concat(rep_frames, ignore_index=True) if rep_frames else pd.DataFrame(),
@@ -379,7 +379,7 @@ def run_pipeline(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the full PlasRiP v2 workflow")
+    parser = argparse.ArgumentParser(description="Run the full PlasRiP workflow")
     parser.add_argument("-i", "--input", nargs="+", required=True)
     parser.add_argument("--model-dir", required=False, default=None)
     parser.add_argument("--database", default=None, help="Reference database directory (or set PLASRIP_DATABASE)")
@@ -389,8 +389,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tax-level", choices=["species", "genus", "family"], default="species")
     parser.add_argument("--range-threshold-narrow", type=float, default=None)
     parser.add_argument("--range-threshold-broad", type=float, default=None)
-    parser.add_argument("--ptu-threshold", type=float, default=None, help="Default: database manifest cutoff")
-    parser.add_argument("--ptu-mash", default="mash")
+    parser.add_argument("--mpc-threshold", type=float, default=None, help="Default: database manifest cutoff")
+    parser.add_argument("--mpc-mash", default="mash")
     parser.add_argument("--mash-k", type=int, default=None)
     parser.add_argument("--mash-sketch-size", dest="mash_s", type=int, default=None)
     parser.add_argument("--with-amr", dest="with_amr", action="store_true", default=True)
@@ -432,8 +432,8 @@ def main() -> None:
         tax_level=args.tax_level,
         range_threshold_narrow=args.range_threshold_narrow,
         range_threshold_broad=args.range_threshold_broad,
-        ptu_threshold=args.ptu_threshold,
-        ptu_mash=args.ptu_mash,
+        mpc_threshold=args.mpc_threshold,
+        mpc_mash=args.mpc_mash,
         mash_k=args.mash_k,
         mash_s=args.mash_s,
         with_amr=args.with_amr,

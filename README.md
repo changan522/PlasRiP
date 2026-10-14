@@ -5,12 +5,12 @@
 [![Platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](#installation)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](#installation)
 
-**PlasRiP** is a Linux-based plasmid analysis platform for **host-range prediction**, **plasmid taxonomic unit (PTU) assignment**, **plasmid genome group (PGG) contextualization**, and optional plasmid functional annotation.
+**PlasRiP** is a Linux-based plasmid analysis platform for **candidate host-spectrum prediction**, **Mash-based plasmid cluster (MPC) assignment**, **plasmid genome group (PGG) contextualization**, and optional plasmid functional annotation.
 
-Starting from one or more plasmid FASTA files, PlasRiP integrates host-range prediction, PTU/PGG assignment, antimicrobial-resistance (AMR) gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
+Starting from one or more plasmid FASTA files, PlasRiP integrates candidate host-spectrum prediction, MPC/PGG assignment, antimicrobial-resistance (AMR) gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
 
-> **Current release:** v0.2.1  
-> **Reference database:** PlasRiP Reference Database v2.0  
+> **Current release:** v0.3.0  
+> **Reference database:** PlasRiP Reference Database v3.0  
 > **Primary command:** `plasrip`  
 > **Main workflow:** `plasrip run`
 
@@ -38,10 +38,10 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates host-range pre
 
 ## Key features
 
-- **Host-range prediction** using a bundled pre-trained two-tower model
-- **PTU assignment** using Mash-based comparison against the versioned PlasRiP reference database
-- **PGG contextualization** for PTUs that belong to higher-order plasmid genome groups
-- **Observed PTU host context** reported separately from model-predicted host spectra
+- **Candidate host-spectrum prediction** using a bundled pre-trained two-tower model
+- **MPC assignment** using Mash-based comparison against the versioned PlasRiP reference database
+- **PGG contextualization** for MPCs that belong to higher-order plasmid genome groups
+- **Observed MPC host context** reported separately from model-predicted host spectra
 - **AMR detection** using ABRicate-compatible databases
 - **Replicon typing** using PlasmidFinder/ABRicate-style screening
 - **Mobility prediction** using Prodigal and MacSyFinder/CONJscan-based detection
@@ -52,76 +52,70 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates host-range pre
 
 ## Workflow overview
 
-![PlasRiP workflow overview](docs/images/workflow_overview.jpg)
+![PlasRiP workflow overview](docs/images/workflow_overview_mpc.svg)
 
-PlasRiP accepts plasmid FASTA or multi-FASTA files, validates the input, and performs two core analyses: **model-based host-range prediction** and **database-backed PTU assignment**. Assigned PTUs are linked to PGGs when applicable. Optional annotation modules then detect AMR genes, plasmid replicons, and mobility systems. Module-level outputs are merged into an integrated final summary.
+PlasRiP accepts plasmid FASTA or multi-FASTA files, validates the input, and performs two core analyses: **model-based candidate host-spectrum prediction** and **database-backed MPC assignment**. Assigned MPCs are linked to PGGs when applicable. Optional annotation modules then detect AMR genes, plasmid replicons, and mobility systems. Module-level outputs are merged into an integrated final summary.
 
 The two host concepts are intentionally separated:
 
 - `Predicted_*` fields describe the **model-predicted host spectrum of the query plasmid**.
-- `PTU_observed_*` fields describe the **observed host distribution of reference plasmids belonging to the assigned PTU**.
+- `MPC_observed_*` fields describe the **observed host distribution of reference plasmids belonging to the assigned MPC**.
 
 ---
 
+## MPC naming update
+
+MPC denotes a Mash-based plasmid cluster. This name identifies the Mash-based reference clusters used by PlasRiP and does not claim equivalence with the published plasmid taxonomic unit framework.
+
+Version 0.3.0 reads the MPC-named metadata in Reference Database v3.0 (schema version 2.0). Existing v2.0 PTU-named metadata must be migrated before use. The public API uses `run_mpc_assignment`, `mpc_threshold`, and `mpc_mash`; CLI options use `--mpc-threshold` and `--mpc-mash`. Assignment outputs are `mpc.tsv` and `mpc.tsv.hits.tsv`, and combined summaries use `MPC_*` and `PGG_*MPC*` fields. Current cluster identifiers are `MPC` followed by six digits.
+
+This migration leaves cluster membership, Mash parameters, assignment decisions, model weights, annotation logic, and the application `score_delta` default of 0.20 unchanged. The historical evaluation cutoff of 0.374016 belongs to the archived model evaluation and is not substituted for the application setting.
+
 ## Installation
 
-PlasRiP is designed for Linux. **Conda is the recommended installation method** because it installs PlasRiP together with the required external bioinformatics tools.
+PlasRiP is designed for Linux. Conda is recommended because it manages the required external bioinformatics tools together with the Python dependencies.
 
 ### Recommended: Conda
 
-Create a dedicated environment and install PlasRiP v0.2.1:
+After v0.3.0 is published to the `changan522` channel:
 
 ```bash
 conda create -n plasrip \
-  -c changan522 \
-  -c conda-forge \
-  -c bioconda \
-  plasrip=0.2.1 -y
-```
-
-Activate the environment:
-
-```bash
+  -c changan522 -c conda-forge -c bioconda \
+  plasrip=0.3.0 -y
 conda activate plasrip
 ```
 
 Verify the installation:
 
 ```bash
-plasrip --version
+plasrip version
 plasrip --help
 plasrip models --json
-```
-
-Expected version:
-
-```text
-0.2.1
-```
-
-The Conda package resolves the required runtime tools, including **Mash 2.3**, ABRicate, Prodigal, and MacSyFinder.
-
-For ABRicate-based modules, confirm that the required databases are available:
-
-```bash
 abricate --list
 ```
 
-### Alternative: install the GitHub wheel
+Expected software version: `0.3.0`. The reference database is downloaded separately.
 
-The wheel attached to the GitHub v0.2.1 release can also be installed directly:
+### Alternative: install the wheel
+
+Download the v0.3.0 wheel and its checksum from the software Release, verify it, and install it:
 
 ```bash
-python -m pip install \
-  https://github.com/changan522/PlasRiP/releases/download/v0.2.1/plasrip-0.2.1-py3-none-any.whl
+wget https://github.com/changan522/PlasRiP/releases/download/v0.3.0/plasrip-0.3.0-py3-none-any.whl
+wget https://github.com/changan522/PlasRiP/releases/download/v0.3.0/plasrip-0.3.0-py3-none-any.whl.sha256
+sha256sum -c plasrip-0.3.0-py3-none-any.whl.sha256
+python -m pip install --upgrade ./plasrip-0.3.0-py3-none-any.whl
 ```
 
-When using the wheel installation, external bioinformatics tools such as Mash 2.3, ABRicate, Prodigal, and MacSyFinder must be installed separately.
+The wheel includes the pretrained model resources. External tools (Mash 2.3, ABRicate, Prodigal and MacSyFinder) must be installed separately. The source-tree `environment.yml` lists the runtime dependencies.
+
+The software tag, conda package and download links above become available when their corresponding releases have been published. Before publication, use the supplied local wheel and your local v3.0 database.
 
 ### Installation from source
 
 ```bash
-git clone --branch v0.2.1 https://github.com/changan522/PlasRiP.git
+git clone --branch v0.3.0 https://github.com/changan522/PlasRiP.git
 cd PlasRiP
 conda env create -f environment.yml
 conda activate plasrip
@@ -138,18 +132,18 @@ python -m pip install -e . --no-deps
 
 ## Required reference database
 
-PTU assignment and PGG contextualization require the external **PlasRiP Reference Database v2.0**. The database is versioned independently from the software and is not bundled inside the Python/conda package.
+MPC assignment and PGG contextualization require the external **PlasRiP Reference Database v3.0**. The database is versioned independently from the software and is not bundled inside the Python/conda package.
 
 Database release page:
 
-<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
+<https://github.com/changan522/PlasRiP/releases/tag/database-v3.0>
 
-The v2.0 database contains:
+The v3.0 database contains:
 
 - 64,391 reference plasmids
-- 52,591 plasmids assigned to 5,975 PTUs
-- 11,800 reference plasmids without stable PTU assignment
-- 4,152 PTUs organized into 185 PGGs
+- 52,591 plasmids assigned to 5,975 MPCs
+- 11,800 reference plasmids without stable MPC assignment
+- 4,152 MPCs organized into 185 PGGs
 
 ### Download
 
@@ -157,35 +151,35 @@ The v2.0 database contains:
 mkdir -p ~/plasrip_resources
 cd ~/plasrip_resources
 
-wget https://github.com/changan522/PlasRiP/releases/download/database-v2.0/PlasRiP_reference_database_v2.0.zip
-wget https://github.com/changan522/PlasRiP/releases/download/database-v2.0/PlasRiP_reference_database_v2.0.zip.sha256
+wget https://github.com/changan522/PlasRiP/releases/download/database-v3.0/PlasRiP_reference_database_v3.0.zip
+wget https://github.com/changan522/PlasRiP/releases/download/database-v3.0/PlasRiP_reference_database_v3.0.zip.sha256
 ```
 
 Verify the downloaded archive:
 
 ```bash
-sha256sum -c PlasRiP_reference_database_v2.0.zip.sha256
+sha256sum -c PlasRiP_reference_database_v3.0.zip.sha256
 ```
 
 A successful check should report:
 
 ```text
-PlasRiP_reference_database_v2.0.zip: OK
+PlasRiP_reference_database_v3.0.zip: OK
 ```
 
 Extract the database:
 
 ```bash
-unzip PlasRiP_reference_database_v2.0.zip
+unzip PlasRiP_reference_database_v3.0.zip
 ```
 
 The database root should contain:
 
 ```text
-PlasRiP_reference_database_v2.0/
+PlasRiP_reference_database_v3.0/
 ├── mash_index/
 ├── plasmid_reference_index.tsv
-├── PTU_metadata.tsv
+├── MPC_metadata.tsv
 ├── PGG_metadata.tsv
 ├── database_manifest.tsv
 ├── database_QC_report.tsv
@@ -198,13 +192,13 @@ PlasRiP_reference_database_v2.0/
 Option 1 — set the environment variable once per shell/session:
 
 ```bash
-export PLASRIP_DATABASE=~/plasrip_resources/PlasRiP_reference_database_v2.0
+export PLASRIP_DATABASE=~/plasrip_resources/PlasRiP_reference_database_v3.0
 ```
 
-Option 2 — provide the database explicitly to PTU-related commands:
+Option 2 — provide the database explicitly to MPC-related commands:
 
 ```bash
---database ~/plasrip_resources/PlasRiP_reference_database_v2.0
+--database ~/plasrip_resources/PlasRiP_reference_database_v3.0
 ```
 
 Validate database metadata and representative sketches:
@@ -219,7 +213,7 @@ Validate the complete Mash index:
 plasrip database --check --deep
 ```
 
-The database manifest fixes the reference Mash configuration (Mash 2.3, k=21, sketch size=1000, seed=42). Query sketches are checked against these parameters before PTU assignment.
+The database manifest fixes the reference Mash configuration (Mash 2.3, k=21, sketch size=1000, seed=42). Query sketches are checked against these parameters before MPC assignment.
 
 ---
 
@@ -249,7 +243,7 @@ Or specify the database explicitly:
 ```bash
 plasrip run \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v3.0 \
   -o run_out \
   -t 8
 ```
@@ -259,7 +253,7 @@ Disable optional annotation modules if needed:
 ```bash
 plasrip run \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v3.0 \
   -o run_out \
   --no-amr \
   --no-replicon \
@@ -272,7 +266,7 @@ plasrip run \
 cat run_out/summary.tsv
 ```
 
-`summary.tsv` is intentionally compact (25 columns). Detailed host-prediction diagnostics remain in `hostrange.tsv`; PTU assignment evidence remains in `ptu.tsv`; detailed PTU/PGG reference context remains in `core_summary.tsv`.
+`summary.tsv` is intentionally compact (25 columns). Detailed host-prediction diagnostics remain in `hostrange.tsv`; MPC assignment evidence remains in `mpc.tsv`; detailed MPC/PGG reference context remains in `core_summary.tsv`.
 
 ---
 
@@ -290,8 +284,8 @@ Available subcommands:
 |---|---|
 | `plasrip run` | Run the full integrated workflow |
 | `plasrip predict` | Predict plasmid host range |
-| `plasrip assign` | Assign plasmids to PTUs and report PGG context |
-| `plasrip core` | Run host-range prediction plus PTU/PGG assignment |
+| `plasrip assign` | Assign plasmids to MPCs and report PGG context |
+| `plasrip core` | Run host-range prediction plus MPC/PGG assignment |
 | `plasrip annotate` | Run AMR, replicon, and mobility annotation |
 | `plasrip database` | Validate and inspect a reference database |
 | `plasrip version` | Print version information |
@@ -312,20 +306,20 @@ plasrip predict \
 
 Use `--model-dir` only for a custom host-range model.
 
-### PTU/PGG assignment only
+### MPC/PGG assignment only
 
 ```bash
 plasrip assign \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
-  -o ptu.tsv \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v3.0 \
+  -o mpc.tsv \
   -t 8
 ```
 
-The PTU cutoff defaults to the value stored in `database_manifest.tsv`. It can be supplied explicitly when required:
+The MPC cutoff defaults to the value stored in `database_manifest.tsv`. It can be supplied explicitly when required:
 
 ```bash
---ptu-threshold 0.05
+--mpc-threshold 0.05
 ```
 
 ### Core analysis
@@ -333,7 +327,7 @@ The PTU cutoff defaults to the value stored in `database_manifest.tsv`. It can b
 ```bash
 plasrip core \
   -i examples/plasmid_genomes/pCZ2103-1.fasta \
-  --database ~/plasrip_resources/PlasRiP_reference_database_v2.0 \
+  --database ~/plasrip_resources/PlasRiP_reference_database_v3.0 \
   -o core_out \
   -t 8
 ```
@@ -350,13 +344,13 @@ plasrip annotate \
 ### Reference-database validation
 
 ```bash
-plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v2.0
+plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v3.0
 ```
 
 Full Mash-index validation:
 
 ```bash
-plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v2.0 --deep
+plasrip database --check ~/plasrip_resources/PlasRiP_reference_database_v3.0 --deep
 ```
 
 ---
@@ -377,9 +371,9 @@ plasrip run -i plasmid1.fasta plasmid2.fasta -o run_out
 
 PlasRiP validates missing, empty, malformed, and unexpanded wildcard input paths before analysis.
 
-PTU-related commands (`assign`, `core`, and `run`) require either:
+MPC-related commands (`assign`, `core`, and `run`) require either:
 
-- `--database /path/to/PlasRiP_reference_database_v2.0`, or
+- `--database /path/to/PlasRiP_reference_database_v3.0`, or
 - the `PLASRIP_DATABASE` environment variable.
 
 ---
@@ -407,30 +401,30 @@ Model-directory resolution follows this priority:
 2. `PLASRIP_MODEL_DIR`
 3. bundled `plasrip/data/hostrange`
 
-### PTU/PGG reference resources
+### MPC/PGG reference resources
 
-PTU/PGG metadata are **not bundled in the software package** in v0.2.x. They are provided by the external versioned reference database:
+MPC/PGG metadata are **not bundled in the software package** in v0.3.x. They are provided by the external versioned reference database:
 
 - `mash_index/`
 - `plasmid_reference_index.tsv`
-- `PTU_metadata.tsv`
+- `MPC_metadata.tsv`
 - `PGG_metadata.tsv`
 - `database_manifest.tsv`
 
 Database release:
 
-<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
+<https://github.com/changan522/PlasRiP/releases/tag/database-v3.0>
 
 ### External tools
 
 The following command-line tools are used by PlasRiP:
 
-- `mash` — PTU assignment
+- `mash` — MPC assignment
 - `abricate` — AMR and replicon screening
 - `prodigal` — ORF prediction
 - `macsyfinder` — mobility prediction
 
-The v2.0 reference database was generated with **Mash 2.3**.
+The v3.0 reference database was generated with **Mash 2.3**.
 
 ---
 
@@ -444,12 +438,12 @@ Typical outputs include:
 | `hostrange.top_hits.tsv` | Top-ranked host candidates |
 | `hostrange.taxonomy.tsv` | Taxonomic summary of predicted hosts |
 | `hostrange.set.tsv` | Predicted host-set output |
-| `ptu.tsv` | PTU assignment plus PGG ID/status |
-| `ptu.tsv.hits.tsv` | Candidate PTU hit-level results |
+| `mpc.tsv` | MPC assignment plus PGG ID/status |
+| `mpc.tsv.hits.tsv` | Candidate MPC hit-level results |
 | `amr.tsv` | AMR gene hits |
 | `plasmidfinder.tsv` | Replicon/Inc-type hits |
 | `mobility_summary.tsv` | Mobility prediction summary |
-| `core_summary.tsv` | Detailed host prediction plus PTU/PGG reference context |
+| `core_summary.tsv` | Detailed host prediction plus MPC/PGG reference context |
 | `annotation_summary.tsv` | Integrated functional-annotation summary |
 | `summary.tsv` | Compact 25-column final integrated report |
 | `PlasRip.log` | Workflow log |
@@ -463,20 +457,20 @@ Predicted_host_top1_score
 Predicted_host_set
 Predicted_host_set_size
 Predicted_host_range_class
-PTU
+MPC
 PGG_ID
 PGG_assignment_status
-PTU_assignment_method
-PTU_candidate_hits
-PTU_closest_rep_dist
-PTU_n_plasmids
-PTU_observed_host_range_rank
-PTU_observed_dominant_taxon
-PTU_observed_n_host_species
-PTU_observed_top_host_species
-PTU_observed_top_host_species_coverage
-PTU_dominant_replicon
-PTU_dominant_mobility
+MPC_assignment_method
+MPC_candidate_hits
+MPC_closest_rep_dist
+MPC_n_plasmids
+MPC_observed_host_range_rank
+MPC_observed_dominant_taxon
+MPC_observed_n_host_species
+MPC_observed_top_host_species
+MPC_observed_top_host_species_coverage
+MPC_dominant_replicon
+MPC_dominant_mobility
 AMR_hits
 AMR_genes
 REPLICON_hits
@@ -484,7 +478,7 @@ REPLICON_genes
 MOB
 ```
 
-`Predicted_host_confidence` is not reported in v0.2.x; raw model scores and host-set outputs are retained instead.
+`Predicted_host_confidence` is not reported in v0.3.x; raw model scores and host-set outputs are retained instead.
 
 ---
 
@@ -495,7 +489,7 @@ MOB
 Set:
 
 ```bash
-export PLASRIP_DATABASE=/path/to/PlasRiP_reference_database_v2.0
+export PLASRIP_DATABASE=/path/to/PlasRiP_reference_database_v3.0
 ```
 
 or provide `--database` explicitly.
@@ -514,7 +508,7 @@ Run:
 plasrip database --check --deep
 ```
 
-PlasRiP validates database schema and Mash parameters before PTU assignment. The v2.0 reference index expects Mash 2.3 with k=21, sketch size=1000, and seed=42.
+PlasRiP validates database schema and Mash parameters before MPC assignment. The v3.0 reference index expects Mash 2.3 with k=21, sketch size=1000, and seed=42.
 
 ### Host-range model directory not found or incomplete
 
@@ -547,18 +541,18 @@ Confirm that the AMR and PlasmidFinder databases required by your workflow are a
 
 ## Python API
 
-The v0.2.x package exposes the reference-database interface and major workflows:
+The v0.3.x package exposes the reference-database interface and major workflows:
 
 ```python
 import plasrip
 
 report = plasrip.validate_reference_database(
-    "/path/to/PlasRiP_reference_database_v2.0"
+    "/path/to/PlasRiP_reference_database_v3.0"
 )
 
 result = plasrip.run_pipeline(
     input_fastas=["plasmid.fasta"],
-    database_dir="/path/to/PlasRiP_reference_database_v2.0",
+    database_dir="/path/to/PlasRiP_reference_database_v3.0",
     out_dir="run_out",
 )
 ```
@@ -608,12 +602,11 @@ PlasRiP/
 ├── pyproject.toml
 ├── README.md
 ├── CHANGELOG.md
-├── RELEASE_NOTES_v0.2.0.md
-├── RELEASE_NOTES_v0.2.1.md
+├── RELEASE_NOTES_v0.3.0.md
 └── VERSION
 ```
 
-The PTU/PGG reference database is intentionally maintained outside `src/plasrip/data/`.
+The MPC/PGG reference database is intentionally maintained outside `src/plasrip/data/`.
 
 ---
 
@@ -625,9 +618,9 @@ Software repository:
 
 <https://github.com/changan522/PlasRiP>
 
-Reference database v2.0:
+Reference database v3.0:
 
-<https://github.com/changan522/PlasRiP/releases/tag/database-v2.0>
+<https://github.com/changan522/PlasRiP/releases/tag/database-v3.0>
 
 ---
 

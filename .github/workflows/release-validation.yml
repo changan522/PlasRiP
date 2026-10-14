@@ -1,0 +1,57 @@
+name: Release validation and conda build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure the runtime environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: plasrip
+          environment-file: environment.yml
+          auto-activate-base: false
+          channels: conda-forge,bioconda
+          channel-priority: strict
+      - name: Install current source and run native tests
+        run: |
+          python scripts/check_version_sync.py
+          python -m pip install . --no-deps --no-build-isolation
+          pytest -q
+          python scripts/verify_install.py
+      - name: Build the conda package with recipe tests
+        run: |
+          conda install -n base -c conda-forge conda-build -y
+          conda run -n base conda build conda.recipe --python 3.11 --override-channels -c conda-forge -c bioconda --no-anaconda-upload --output-folder "${RUNNER_TEMP}/plasrip-conda"
+          mkdir -p release_artifacts
+          python - <<'PY'
+          import hashlib, os, pathlib, shutil
+          build = pathlib.Path(os.environ['RUNNER_TEMP']) / 'plasrip-conda' / 'linux-64'
+          files = list(build.glob('plasrip-0.3.0-*.conda')) + list(build.glob('plasrip-0.3.0-*.tar.bz2'))
+          if len(files) != 1:
+              raise SystemExit('Expected one Python 3.11 conda package.')
+          out = pathlib.Path('release_artifacts')
+          artifact = out / files[0].name
+          shutil.copy2(files[0], artifact)
+          checksum = hashlib.sha256(artifact.read_bytes()).hexdigest()
+          artifact.with_name(artifact.name + '.sha256').write_text(checksum + '  ' + artifact.name + '\n')
+          PY
+      - name: Upload the tested conda package
+        uses: actions/upload-artifact@v4
+        with:
+          name: plasrip-0.3.0-conda-linux-64
+          path: release_artifacts/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,4 +1,4 @@
-"""Custom exception hierarchy for PlasRiP v2."""
+"""Custom exception hierarchy for PlasRiP."""
 
 from __future__ import annotations
 

@@ -9,7 +9,7 @@ import pandas as pd
 
 from plasrip import annotate
 from plasrip.schemas import ANNOTATION_SUMMARY_COLUMNS
-from plasrip.database import INDEX_REQUIRED_COLUMNS, PTU_REQUIRED_COLUMNS, PGG_REQUIRED_COLUMNS
+from plasrip.database import INDEX_REQUIRED_COLUMNS, MPC_REQUIRED_COLUMNS, PGG_REQUIRED_COLUMNS
 
 
 def _complete_row(columns: list[str], values: dict[str, str]) -> dict[str, str]:
@@ -26,23 +26,23 @@ def make_database(root: Path) -> Path:
             "plasmid_id": "ref1",
             "accession": "A1",
             "length_bp": "1000",
-            "PTU_ID": "PTU000001",
-            "PTU_assignment_status": "ASSIGNED_STABLE_PTU",
-            "is_PTU_representative": "TRUE",
+            "MPC_ID": "MPC000001",
+            "MPC_assignment_status": "ASSIGNED_STABLE_MPC",
+            "is_MPC_representative": "TRUE",
         }),
         _complete_row(INDEX_REQUIRED_COLUMNS, {
             "mash_reference_id": "plasmid_fasta/ref2.fasta",
             "plasmid_id": "ref2",
             "accession": "A2",
             "length_bp": "900",
-            "PTU_ID": "PTU000001",
-            "PTU_assignment_status": "ASSIGNED_STABLE_PTU",
-            "is_PTU_representative": "FALSE",
+            "MPC_ID": "MPC000001",
+            "MPC_assignment_status": "ASSIGNED_STABLE_MPC",
+            "is_MPC_representative": "FALSE",
         }),
     ]
     pd.DataFrame(index_rows).to_csv(root / "plasmid_reference_index.tsv", sep="\t", index=False)
-    ptu_row = _complete_row(PTU_REQUIRED_COLUMNS, {
-        "PTU_ID": "PTU000001", "representative_plasmid": "ref1", "n_plasmids": "2",
+    mpc_row = _complete_row(MPC_REQUIRED_COLUMNS, {
+        "MPC_ID": "MPC000001", "representative_plasmid": "ref1", "n_plasmids": "2",
         "PGG_ID": "PGG-000001", "PGG_assignment_status": "ASSIGNED_STABLE_PGG",
         "mean_length_bp": "950", "median_length_bp": "950", "min_length_bp": "900", "max_length_bp": "1000",
         "replicon_annotated_fraction": "1", "n_replicon_types": "1", "replicon_types": "IncX",
@@ -64,24 +64,24 @@ def make_database(root: Path) -> Path:
         "n_virulence_positive_plasmids": "1", "virulence_positive_fraction": "0.5",
         "mean_virulence_gene_count_per_plasmid": "0.5", "n_unique_virulence_genes": "1", "unique_virulence_genes": "virX",
     })
-    pd.DataFrame([ptu_row]).to_csv(root / "PTU_metadata.tsv", sep="\t", index=False)
+    pd.DataFrame([mpc_row]).to_csv(root / "MPC_metadata.tsv", sep="\t", index=False)
     pgg_row = _complete_row(PGG_REQUIRED_COLUMNS, {
-        "PGG_ID": "PGG-000001", "n_PTUs": "1", "n_plasmids": "2", "anchor_PTU": "PTU000001",
+        "PGG_ID": "PGG-000001", "n_MPCs": "1", "n_plasmids": "2", "anchor_MPC": "MPC000001",
         "anchor_representative_plasmid": "ref1", "minimum_internal_support": "0.9",
         "merge_with_parent_support": "0.5", "effective_persistence_width": "0.4",
         "persistence_volume": "0.4", "anchor_mean_within_group_Mash": "0.01",
     })
     pd.DataFrame([pgg_row]).to_csv(root / "PGG_metadata.tsv", sep="\t", index=False)
     pd.DataFrame([
-        ("database_name", "PlasRiP Reference Database"), ("database_version", "v2.0-test"),
+        ("database_name", "PlasRiP Reference Database"), ("database_version", "v3.0-test"),
         ("schema_version", "2.0"), ("release_date", "2026-09-03"), ("mash_index_directory", "mash_index/"),
-        ("total_reference_plasmids", "2"), ("stable_PTU_assigned_plasmids", "2"),
-        ("unassigned_no_stable_PTU_plasmids", "0"), ("PTU_count", "1"), ("PGG_assigned_PTUs", "1"), ("PGG_count", "1"),
-        ("PTU_ID_format", "PTU000001"), ("PGG_ID_format", "PGG-000001"), ("mash_version", "2.3"),
+        ("total_reference_plasmids", "2"), ("stable_MPC_assigned_plasmids", "2"),
+        ("unassigned_no_stable_MPC_plasmids", "0"), ("MPC_count", "1"), ("PGG_assigned_MPCs", "1"), ("PGG_count", "1"),
+        ("MPC_ID_format", "MPC000001"), ("PGG_ID_format", "PGG-000001"), ("mash_version", "2.3"),
         ("mash_hash_function", "MurmurHash3_x64_128"), ("mash_seed", "42"), ("mash_k", "21"),
         ("mash_alphabet", "ACGT (canonical)"), ("mash_target_min_hashes_per_sketch", "1000"),
         ("mash_sketches_per_file", "1"), ("mash_reference_id_pattern", "plasmid_fasta/<sequence_filename>"),
-        ("query_PTU_Mash_cutoff", "0.05"),
+        ("query_MPC_Mash_cutoff", "0.05"),
     ], columns=["key", "value"]).to_csv(root / "database_manifest.tsv", sep="\t", index=False)
     for name in ["ref1.msh", "ref2.msh"]:
         (root / "mash_index" / name).write_bytes(b"test")
@@ -142,13 +142,13 @@ raise SystemExit(2)
 
 
 def test_step9_public_cli_database_and_assignment_subprocess(tmp_path: Path):
-    """Exercise public argparse -> database -> Mash -> PTU/PGG TSV boundaries."""
+    """Exercise public argparse -> database -> Mash -> MPC/PGG TSV boundaries."""
     repo_root = Path(__file__).resolve().parents[1]
     db = make_database(tmp_path / "db")
     fake_mash = _write_fake_mash(tmp_path / "bin")
     query = tmp_path / "query.fasta"
     query.write_text(">q\nACGTACGTACGT\n", encoding="utf-8")
-    output = tmp_path / "ptu.tsv"
+    output = tmp_path / "mpc.tsv"
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(repo_root / "src")
@@ -163,7 +163,7 @@ def test_step9_public_cli_database_and_assignment_subprocess(tmp_path: Path):
         capture_output=True,
         text=True,
     )
-    assert '"PTUs": 1' in check.stdout
+    assert '"MPCs": 1' in check.stdout
     assert '"PGGs": 1' in check.stdout
 
     subprocess.run(
@@ -181,13 +181,13 @@ def test_step9_public_cli_database_and_assignment_subprocess(tmp_path: Path):
 
     result = pd.read_csv(output, sep="\t", dtype=str, keep_default_na=False)
     assert result.loc[0, "PLASMID"] == "query"
-    assert result.loc[0, "PTU"] == "PTU000001"
+    assert result.loc[0, "MPC"] == "MPC000001"
     assert result.loc[0, "PGG_ID"] == "PGG-000001"
     assert result.loc[0, "PGG_assignment_status"] == "ASSIGNED_STABLE_PGG"
     assert result.loc[0, "how_assigned"] == "all_members"
 
     hits = pd.read_csv(str(output) + ".hits.tsv", sep="\t", dtype=str, keep_default_na=False)
-    assert hits.loc[0, "PTU_ID"] == "PTU000001"
+    assert hits.loc[0, "MPC_ID"] == "MPC000001"
     assert hits.loc[0, "PGG_ID"] == "PGG-000001"
 
 

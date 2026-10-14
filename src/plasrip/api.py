@@ -1,4 +1,4 @@
-"""Public Python API for PlasRiP v0.2.
+"""Public Python API for PlasRiP v0.3.
 
 The analysis functions accept a database directory (or ``PLASRIP_DATABASE``).
 For applications that need to inspect or validate the external reference
@@ -11,7 +11,7 @@ from __future__ import annotations
 from os import PathLike
 
 from .annotate import run_annotation
-from .assign import run_ptu_assignment
+from .assign import run_mpc_assignment
 from .core import run_core_analysis
 from .database import (
     PlasRipReferenceDatabase,
@@ -42,7 +42,7 @@ def validate_reference_database(
 ) -> dict[str, object]:
     """Return the same database-validation report used by the CLI.
 
-    Set ``check_sketches`` to validate PTU representative sketches, or
+    Set ``check_sketches`` to validate MPC representative sketches, or
     ``check_all_sketches`` for full release QC of the Mash index.
     """
     return validate_database_dir(
@@ -57,7 +57,7 @@ __all__ = [
     "load_reference_database",
     "validate_reference_database",
     "run_host_prediction",
-    "run_ptu_assignment",
+    "run_mpc_assignment",
     "run_core_analysis",
     "run_annotation",
     "run_pipeline",

@@ -1,4 +1,4 @@
-"""High-level annotation entry point for PlasRiP v2.
+"""High-level annotation entry point for PlasRiP.
 
 Precision fix version:
 - keep per-plasmid execution
@@ -269,7 +269,7 @@ def run_annotation(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run one-stop plasmid annotation for PlasRiP v2")
+    parser = argparse.ArgumentParser(description="Run one-stop plasmid annotation for PlasRiP")
     parser.add_argument("-i", "--input", nargs="+", required=True, help="Input plasmid FASTA files")
     parser.add_argument("-o", "--out-dir", required=True, help="Output directory")
     parser.add_argument("--with-amr", dest="with_amr", action="store_true", default=True, help="Run AMR detection")

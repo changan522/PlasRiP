@@ -8,7 +8,7 @@ from plasrip.assign import parse_rep_hits
 from plasrip.database import (
     INDEX_REQUIRED_COLUMNS,
     PGG_REQUIRED_COLUMNS,
-    PTU_REQUIRED_COLUMNS,
+    MPC_REQUIRED_COLUMNS,
     build_assignment_indexes,
     load_database,
     resolve_database_dir,
@@ -33,24 +33,24 @@ def make_database(root: Path) -> Path:
             "plasmid_id": "ref1",
             "accession": "A1",
             "length_bp": "1000",
-            "PTU_ID": "PTU000001",
-            "PTU_assignment_status": "ASSIGNED_STABLE_PTU",
-            "is_PTU_representative": "TRUE",
+            "MPC_ID": "MPC000001",
+            "MPC_assignment_status": "ASSIGNED_STABLE_MPC",
+            "is_MPC_representative": "TRUE",
         }),
         _complete_row(INDEX_REQUIRED_COLUMNS, {
             "mash_reference_id": "plasmid_fasta/ref2.fasta",
             "plasmid_id": "ref2",
             "accession": "A2",
             "length_bp": "900",
-            "PTU_ID": "PTU000001",
-            "PTU_assignment_status": "ASSIGNED_STABLE_PTU",
-            "is_PTU_representative": "FALSE",
+            "MPC_ID": "MPC000001",
+            "MPC_assignment_status": "ASSIGNED_STABLE_MPC",
+            "is_MPC_representative": "FALSE",
         }),
     ]
     pd.DataFrame(index_rows).to_csv(root / "plasmid_reference_index.tsv", sep="\t", index=False)
 
-    ptu_row = _complete_row(PTU_REQUIRED_COLUMNS, {
-        "PTU_ID": "PTU000001",
+    mpc_row = _complete_row(MPC_REQUIRED_COLUMNS, {
+        "MPC_ID": "MPC000001",
         "representative_plasmid": "ref1",
         "n_plasmids": "2",
         "PGG_ID": "PGG-000001",
@@ -111,13 +111,13 @@ def make_database(root: Path) -> Path:
         "n_unique_virulence_genes": "1",
         "unique_virulence_genes": "virX",
     })
-    pd.DataFrame([ptu_row]).to_csv(root / "PTU_metadata.tsv", sep="\t", index=False)
+    pd.DataFrame([mpc_row]).to_csv(root / "MPC_metadata.tsv", sep="\t", index=False)
 
     pgg_row = _complete_row(PGG_REQUIRED_COLUMNS, {
         "PGG_ID": "PGG-000001",
-        "n_PTUs": "1",
+        "n_MPCs": "1",
         "n_plasmids": "2",
-        "anchor_PTU": "PTU000001",
+        "anchor_MPC": "MPC000001",
         "anchor_representative_plasmid": "ref1",
         "minimum_internal_support": "0.9",
         "merge_with_parent_support": "0.5",
@@ -129,17 +129,17 @@ def make_database(root: Path) -> Path:
 
     pd.DataFrame([
         ("database_name", "PlasRiP Reference Database"),
-        ("database_version", "v2.0-test"),
+        ("database_version", "v3.0-test"),
         ("schema_version", "2.0"),
         ("release_date", "2026-09-03"),
         ("mash_index_directory", "mash_index/"),
         ("total_reference_plasmids", "2"),
-        ("stable_PTU_assigned_plasmids", "2"),
-        ("unassigned_no_stable_PTU_plasmids", "0"),
-        ("PTU_count", "1"),
-        ("PGG_assigned_PTUs", "1"),
+        ("stable_MPC_assigned_plasmids", "2"),
+        ("unassigned_no_stable_MPC_plasmids", "0"),
+        ("MPC_count", "1"),
+        ("PGG_assigned_MPCs", "1"),
         ("PGG_count", "1"),
-        ("PTU_ID_format", "PTU000001"),
+        ("MPC_ID_format", "MPC000001"),
         ("PGG_ID_format", "PGG-000001"),
         ("mash_version", "2.3"),
         ("mash_hash_function", "MurmurHash3_x64_128"),
@@ -149,7 +149,7 @@ def make_database(root: Path) -> Path:
         ("mash_target_min_hashes_per_sketch", "1000"),
         ("mash_sketches_per_file", "1"),
         ("mash_reference_id_pattern", "plasmid_fasta/<sequence_filename>"),
-        ("query_PTU_Mash_cutoff", "0.05"),
+        ("query_MPC_Mash_cutoff", "0.05"),
     ], columns=["key", "value"]).to_csv(root / "database_manifest.tsv", sep="\t", index=False)
 
     for name in ["ref1.msh", "ref2.msh"]:
@@ -172,7 +172,7 @@ def _set_manifest_value(path: Path, key: str, value: str) -> None:
 def test_database_load_and_indexes(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
     report = validate_database_dir(db_dir, check_sketches=True, check_all_sketches=True)
-    assert report["PTUs"] == 1
+    assert report["MPCs"] == 1
     assert report["PGGs"] == 1
     assert report["mash_k"] == 21
     assert report["mash_sketch_size"] == 1000
@@ -183,17 +183,17 @@ def test_database_load_and_indexes(tmp_path: Path):
     assert db.mash_version == "2.3"
     assert db.mash_seed == 42
 
-    ptu_to_members, reps, keys = build_assignment_indexes(db)
-    assert len(ptu_to_members["PTU000001"]) == 2
+    mpc_to_members, reps, keys = build_assignment_indexes(db)
+    assert len(mpc_to_members["MPC000001"]) == 2
     assert len(reps) == 1
-    assert keys["plasmid_fasta/ref1.fasta"] == ("PTU000001", "ref1")
+    assert keys["plasmid_fasta/ref1.fasta"] == ("MPC000001", "ref1")
 
 
 def test_resolve_database_from_environment(tmp_path: Path, monkeypatch):
     db_dir = make_database(tmp_path / "db")
     monkeypatch.setenv("PLASRIP_DATABASE", str(db_dir))
     assert resolve_database_dir(None) == db_dir.resolve()
-    assert validate_database_dir(None)["PTUs"] == 1
+    assert validate_database_dir(None)["MPCs"] == 1
 
 
 def test_explicit_database_takes_priority_over_environment(tmp_path: Path, monkeypatch):
@@ -204,10 +204,10 @@ def test_explicit_database_takes_priority_over_environment(tmp_path: Path, monke
 
 
 def test_parse_rep_hits_uses_mash_reference_id():
-    rec = {"plasmid_fasta/ref1.fasta": ("PTU000001", "ref1")}
+    rec = {"plasmid_fasta/ref1.fasta": ("MPC000001", "ref1")}
     lines = ["query.fasta\tplasmid_fasta/ref1.fasta\t0.01\t0\t1/1"]
     hits = parse_rep_hits("query.fasta", lines, rec, 0.05)
-    assert hits[0]["PTU_ID"] == "PTU000001"
+    assert hits[0]["MPC_ID"] == "MPC000001"
     assert hits[0]["Representative"] == "ref1"
 
 
@@ -222,7 +222,7 @@ def test_query_mash_parameters_must_match_database(tmp_path: Path):
 
 def test_database_rejects_member_count_mismatch(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
-    _rewrite_tsv(db_dir / "PTU_metadata.tsv", lambda df: df.__setitem__("n_plasmids", "99"))
+    _rewrite_tsv(db_dir / "MPC_metadata.tsv", lambda df: df.__setitem__("n_plasmids", "99"))
     with pytest.raises(PlasRipDataError, match="member-count mismatch"):
         validate_database_dir(db_dir)
 
@@ -230,7 +230,7 @@ def test_database_rejects_member_count_mismatch(tmp_path: Path):
 def test_database_rejects_representative_mismatch(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
     _rewrite_tsv(
-        db_dir / "PTU_metadata.tsv",
+        db_dir / "MPC_metadata.tsv",
         lambda df: df.__setitem__("representative_plasmid", "ref2"),
     )
     with pytest.raises(PlasRipDataError, match="representative mismatch"):
@@ -246,9 +246,9 @@ def test_database_rejects_unsupported_schema(tmp_path: Path):
 
 def test_database_rejects_missing_schema_column(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
-    df = pd.read_csv(db_dir / "PTU_metadata.tsv", sep="\t", dtype=str, keep_default_na=False)
+    df = pd.read_csv(db_dir / "MPC_metadata.tsv", sep="\t", dtype=str, keep_default_na=False)
     df = df.drop(columns=["unique_ARG_classes"])
-    df.to_csv(db_dir / "PTU_metadata.tsv", sep="\t", index=False)
+    df.to_csv(db_dir / "MPC_metadata.tsv", sep="\t", index=False)
     with pytest.raises(PlasRipDataError, match="missing required schema-2.0 columns"):
         validate_database_dir(db_dir)
 
@@ -257,11 +257,11 @@ def test_database_rejects_invalid_boolean_encoding(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
     _rewrite_tsv(
         db_dir / "plasmid_reference_index.tsv",
-        lambda df: df.loc[df["plasmid_id"] == "ref2", "is_PTU_representative"].__setitem__(slice(None), "NOPE"),
+        lambda df: df.loc[df["plasmid_id"] == "ref2", "is_MPC_representative"].__setitem__(slice(None), "NOPE"),
     )
     # Avoid chained-assignment ambiguity across pandas versions.
     df = pd.read_csv(db_dir / "plasmid_reference_index.tsv", sep="\t", dtype=str, keep_default_na=False)
-    df.loc[df["plasmid_id"] == "ref2", "is_PTU_representative"] = "NOPE"
+    df.loc[df["plasmid_id"] == "ref2", "is_MPC_representative"] = "NOPE"
     df.to_csv(db_dir / "plasmid_reference_index.tsv", sep="\t", index=False)
     with pytest.raises(PlasRipDataError, match="canonical TRUE/FALSE"):
         validate_database_dir(db_dir)
@@ -284,7 +284,7 @@ def test_database_rejects_bad_mash_manifest_semantics(tmp_path: Path):
 def test_database_rejects_host_range_level_rank_mismatch(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
     _rewrite_tsv(
-        db_dir / "PTU_metadata.tsv",
+        db_dir / "MPC_metadata.tsv",
         lambda df: df.__setitem__("observed_host_range_rank", "Genus"),
     )
     with pytest.raises(PlasRipDataError, match="host_range_level/rank mismatch"):
@@ -293,7 +293,7 @@ def test_database_rejects_host_range_level_rank_mismatch(tmp_path: Path):
 
 def test_database_rejects_mobility_count_mismatch(tmp_path: Path):
     db_dir = make_database(tmp_path / "db")
-    _rewrite_tsv(db_dir / "PTU_metadata.tsv", lambda df: df.__setitem__("n_NT", "1"))
+    _rewrite_tsv(db_dir / "MPC_metadata.tsv", lambda df: df.__setitem__("n_NT", "1"))
     with pytest.raises(PlasRipDataError, match="mobility counts do not sum"):
         validate_database_dir(db_dir)
 
@@ -309,9 +309,9 @@ def test_assignment_indexes_exclude_unassigned_reference_plasmids(tmp_path: Path
         "plasmid_id": "unassigned",
         "accession": "A3",
         "length_bp": "800",
-        "PTU_ID": "",
-        "PTU_assignment_status": "UNASSIGNED_NO_STABLE_PTU",
-        "is_PTU_representative": "FALSE",
+        "MPC_ID": "",
+        "MPC_assignment_status": "UNASSIGNED_NO_STABLE_MPC",
+        "is_MPC_representative": "FALSE",
     }
     index.to_csv(db_dir / "plasmid_reference_index.tsv", sep="\t", index=False)
 
@@ -319,14 +319,14 @@ def test_assignment_indexes_exclude_unassigned_reference_plasmids(tmp_path: Path
         db_dir / "database_manifest.tsv", sep="\t", dtype=str, keep_default_na=False
     )
     manifest.loc[manifest["key"] == "total_reference_plasmids", "value"] = "3"
-    manifest.loc[manifest["key"] == "unassigned_no_stable_PTU_plasmids", "value"] = "1"
+    manifest.loc[manifest["key"] == "unassigned_no_stable_MPC_plasmids", "value"] = "1"
     manifest.to_csv(db_dir / "database_manifest.tsv", sep="\t", index=False)
 
-    # Normal assignment only requires stable PTU member/repr sketches; the
-    # unassigned reference remains indexed but is not a PTU-assignment target.
+    # Normal assignment only requires stable MPC member/repr sketches; the
+    # unassigned reference remains indexed but is not a MPC-assignment target.
     db = load_database(db_dir)
-    ptu_to_members, reps, keys = build_assignment_indexes(db)
-    assert len(ptu_to_members["PTU000001"]) == 2
+    mpc_to_members, reps, keys = build_assignment_indexes(db)
+    assert len(mpc_to_members["MPC000001"]) == 2
     assert len(reps) == 1
     assert "unassigned" not in keys
 
@@ -406,5 +406,5 @@ def test_reference_sketch_sample_is_deterministic(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr(dbmod, "inspect_mash_sketch", fake_inspect)
     checked = dbmod.validate_reference_sketch_sample(db, "mash", sample_size=3)
-    assert len(checked) == 1  # one PTU representative in this fixture
+    assert len(checked) == 1  # one MPC representative in this fixture
     assert seen == ["ref1.msh"]

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="630" viewBox="0 0 1100 630">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#475569"/></marker></defs>
+<rect width="1100" height="630" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#203047}.title{font-size:22px;font-weight:bold}.label{font-size:18px;font-weight:bold}.body{font-size:16px}.small{font-size:14px}</style>
+<text x="550" y="34" text-anchor="middle" class="title">PlasRiP: candidate host-spectrum prediction and MPC placement</text>
+<rect x="320" y="60" width="460" height="92" rx="12" fill="#fff3e7" stroke="#b9c8d6"/>
+<text x="550.0" y="89" text-anchor="middle" class="label">Input and preparation</text>
+<text x="550.0" y="117" text-anchor="middle" class="body">Plasmid FASTA / multi-FASTA</text>
+<text x="550.0" y="142" text-anchor="middle" class="body">Validation, query IDs and per-plasmid workspace</text>
+<rect x="20" y="205" width="335" height="157" rx="12" fill="#eef5ff" stroke="#b9c8d6"/>
+<text x="187.5" y="234" text-anchor="middle" class="label">Candidate host spectrum</text>
+<text x="187.5" y="262" text-anchor="middle" class="body">Sequence and codon features</text>
+<text x="187.5" y="287" text-anchor="middle" class="body">Pretrained two-tower model</text>
+<text x="187.5" y="312" text-anchor="middle" class="body">Relative top-score-gap decoding</text>
+<text x="187.5" y="337" text-anchor="middle" class="body">Application score_delta = 0.20</text>
+<rect x="382" y="205" width="335" height="157" rx="12" fill="#f3effc" stroke="#b9c8d6"/>
+<text x="549.5" y="234" text-anchor="middle" class="label">MPC / PGG placement</text>
+<text x="549.5" y="262" text-anchor="middle" class="body">Mash distance to reference plasmids</text>
+<text x="549.5" y="287" text-anchor="middle" class="body">Representative and member comparisons</text>
+<text x="549.5" y="312" text-anchor="middle" class="body">MPC metadata and observed host context</text>
+<text x="549.5" y="337" text-anchor="middle" class="body">Stable PGG context where assigned</text>
+<rect x="745" y="205" width="335" height="157" rx="12" fill="#edf8f3" stroke="#b9c8d6"/>
+<text x="912.5" y="234" text-anchor="middle" class="label">Optional annotation</text>
+<text x="912.5" y="262" text-anchor="middle" class="body">AMR gene screening</text>
+<text x="912.5" y="287" text-anchor="middle" class="body">Replicon typing</text>
+<text x="912.5" y="312" text-anchor="middle" class="body">Sequence-based mobility prediction</text>
+<path d="M550,152 L550,178 L188,178 L188,205 M550,178 L550,205 M550,178 L912,178 L912,205" fill="none" stroke="#475569" stroke-width="2"/>
+<rect x="20" y="390" width="335" height="92" rx="12" fill="#eef5ff" stroke="#b9c8d6"/>
+<text x="187.5" y="419" text-anchor="middle" class="label">Host outputs</text>
+<text x="187.5" y="447" text-anchor="middle" class="body">hostrange.tsv</text>
+<text x="187.5" y="472" text-anchor="middle" class="body">hostrange.top_hits.tsv / .taxonomy.tsv</text>
+<rect x="382" y="390" width="335" height="92" rx="12" fill="#f3effc" stroke="#b9c8d6"/>
+<text x="549.5" y="419" text-anchor="middle" class="label">Assignment outputs</text>
+<text x="549.5" y="447" text-anchor="middle" class="body">mpc.tsv</text>
+<text x="549.5" y="472" text-anchor="middle" class="body">mpc.tsv.hits.tsv</text>
+<rect x="745" y="390" width="335" height="92" rx="12" fill="#edf8f3" stroke="#b9c8d6"/>
+<text x="912.5" y="419" text-anchor="middle" class="label">Annotation outputs</text>
+<text x="912.5" y="447" text-anchor="middle" class="body">amr.tsv / plasmidfinder.tsv</text>
+<text x="912.5" y="472" text-anchor="middle" class="body">mobility_summary.tsv</text>
+<path d="M188,362 L188,390" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M550,362 L550,390" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M912,362 L912,390" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="225" y="523" width="650" height="80" rx="12" fill="#f7f9fc" stroke="#b9c8d6"/>
+<text x="550.0" y="552" text-anchor="middle" class="label">Integrated reports</text>
+<text x="550.0" y="580" text-anchor="middle" class="body">core_summary.tsv + annotation_summary.tsv → summary.tsv</text>
+<path d="M188,482 L188,504 L550,504 L550,523 M550,482 L550,523 M912,482 L912,504 L550,504" fill="none" stroke="#475569" stroke-width="2"/>
+<text x="550" y="624" text-anchor="middle" class="small">Model candidate hosts and database-observed MPC hosts are reported as separate information layers.</text></svg>

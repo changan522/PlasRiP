@@ -1,4 +1,4 @@
-"""High-level host-range prediction entry point for PlasRiP v2 (3.2 unified)."""
+"""High-level host-range prediction entry point for PlasRiP (3.2 unified)."""
 
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ def run_host_prediction(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Predict plasmid host range with PlasRiP v2 (3.2 unified)")
+    parser = argparse.ArgumentParser(description="Predict plasmid host range with PlasRiP (3.2 unified)")
     parser.add_argument("-i", "--input", nargs="+", required=True, help="Input plasmid FASTA files")
     parser.add_argument("--model-dir", required=False, default=None, help="3.2 host-range model directory")
     parser.add_argument("-o", "--out-dir", required=True, help="Output directory")

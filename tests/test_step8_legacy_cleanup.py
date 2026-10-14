@@ -4,10 +4,10 @@ from pathlib import Path
 import tomllib
 
 
-LEGACY_PTU_FILES = {
-    "PTU_info.tsv",
-    "PTUmember.csv",
-    "PTU-metadata.csv",
+LEGACY_MPC_FILES = {
+    "MPC_info.tsv",
+    "MPCmember.csv",
+    "MPC-metadata.csv",
 }
 
 
@@ -15,10 +15,10 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def test_legacy_ptu_database_files_are_not_bundled():
+def test_legacy_mpc_database_files_are_not_bundled():
     data_dir = _project_root() / "src" / "plasrip" / "data"
     found = {p.name for p in data_dir.rglob("*") if p.is_file()}
-    assert LEGACY_PTU_FILES.isdisjoint(found)
+    assert LEGACY_MPC_FILES.isdisjoint(found)
 
 
 def test_package_data_is_explicit_and_excludes_external_reference_database():
@@ -30,9 +30,9 @@ def test_package_data_is_explicit_and_excludes_external_reference_database():
     assert patterns == {"data/CONJScan/**", "data/hostrange/**"}
 
 
-def test_runtime_source_does_not_name_legacy_ptu_database_files():
+def test_runtime_source_does_not_name_legacy_mpc_database_files():
     src_dir = _project_root() / "src" / "plasrip"
-    legacy_tokens = tuple(LEGACY_PTU_FILES)
+    legacy_tokens = tuple(LEGACY_MPC_FILES)
     offenders = []
     for path in src_dir.rglob("*.py"):
         text = path.read_text(encoding="utf-8")

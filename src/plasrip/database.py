@@ -1,9 +1,9 @@
-"""External reference-database interface for PlasRiP v0.2+.
+"""External reference-database interface for PlasRiP v0.3+.
 
-PlasRiP software and the PTU/PGG reference database are versioned and
+PlasRiP software and the MPC/PGG reference database are versioned and
 released separately.  This module is the single source of truth for the
 schema-2.0 database contract and for database integrity checks used by the
-CLI, pipeline, and PTU assignment code.
+CLI, pipeline, and MPC assignment code.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from .config import (
     MASH_INDEX_SUBDIR,
     PGG_METADATA_FILENAME,
     PLASMID_REFERENCE_INDEX_FILENAME,
-    PTU_METADATA_FILENAME,
+    MPC_METADATA_FILENAME,
 )
 from .exceptions import PlasRipConfigError, PlasRipDataError
 
@@ -37,13 +37,13 @@ INDEX_REQUIRED_COLUMNS = [
     "plasmid_id",
     "accession",
     "length_bp",
-    "PTU_ID",
-    "PTU_assignment_status",
-    "is_PTU_representative",
+    "MPC_ID",
+    "MPC_assignment_status",
+    "is_MPC_representative",
 ]
 
-PTU_REQUIRED_COLUMNS = [
-    "PTU_ID",
+MPC_REQUIRED_COLUMNS = [
+    "MPC_ID",
     "representative_plasmid",
     "n_plasmids",
     "PGG_ID",
@@ -107,9 +107,9 @@ PTU_REQUIRED_COLUMNS = [
 
 PGG_REQUIRED_COLUMNS = [
     "PGG_ID",
-    "n_PTUs",
+    "n_MPCs",
     "n_plasmids",
-    "anchor_PTU",
+    "anchor_MPC",
     "anchor_representative_plasmid",
     "minimum_internal_support",
     "merge_with_parent_support",
@@ -125,12 +125,12 @@ MANIFEST_REQUIRED_KEYS = [
     "release_date",
     "mash_index_directory",
     "total_reference_plasmids",
-    "stable_PTU_assigned_plasmids",
-    "unassigned_no_stable_PTU_plasmids",
-    "PTU_count",
-    "PGG_assigned_PTUs",
+    "stable_MPC_assigned_plasmids",
+    "unassigned_no_stable_MPC_plasmids",
+    "MPC_count",
+    "PGG_assigned_MPCs",
     "PGG_count",
-    "PTU_ID_format",
+    "MPC_ID_format",
     "PGG_ID_format",
     "mash_version",
     "mash_hash_function",
@@ -140,21 +140,21 @@ MANIFEST_REQUIRED_KEYS = [
     "mash_target_min_hashes_per_sketch",
     "mash_sketches_per_file",
     "mash_reference_id_pattern",
-    "query_PTU_Mash_cutoff",
+    "query_MPC_Mash_cutoff",
 ]
 
 SUPPORTED_SCHEMA_VERSION = "2.0"
-EXPECTED_PTU_ID_EXAMPLE = "PTU000001"
+EXPECTED_MPC_ID_EXAMPLE = "MPC000001"
 EXPECTED_PGG_ID_EXAMPLE = "PGG-000001"
 EXPECTED_MASH_HASH_FUNCTION = "MurmurHash3_x64_128"
 EXPECTED_MASH_ALPHABET = "ACGT (canonical)"
 EXPECTED_SKETCHES_PER_FILE = 1
 
-PTU_ID_RE = re.compile(r"^PTU\d{6}$")
+MPC_ID_RE = re.compile(r"^MPC\d{6}$")
 PGG_ID_RE = re.compile(r"^PGG-\d{6}$")
 
-INDEX_ASSIGNED_STATUS = "ASSIGNED_STABLE_PTU"
-INDEX_UNASSIGNED_STATUS = "UNASSIGNED_NO_STABLE_PTU"
+INDEX_ASSIGNED_STATUS = "ASSIGNED_STABLE_MPC"
+INDEX_UNASSIGNED_STATUS = "UNASSIGNED_NO_STABLE_MPC"
 PGG_ASSIGNED_STATUS = "ASSIGNED_STABLE_PGG"
 PGG_UNASSIGNED_STATUSES = {
     "UNASSIGNED_OUTSIDE_CONSENSUS_SPACE",
@@ -164,7 +164,7 @@ PGG_UNASSIGNED_STATUSES = {
 
 CANONICAL_BOOL_VALUES = {"TRUE", "FALSE"}
 
-PTU_FRACTION_COLUMNS = [
+MPC_FRACTION_COLUMNS = [
     "replicon_annotated_fraction",
     "dominant_replicon_fraction",
     "top_host_species_coverage",
@@ -211,7 +211,7 @@ class PlasRipReferenceDatabase:
     root: Path
     mash_index_dir: Path
     plasmid_index: pd.DataFrame
-    ptu_metadata: pd.DataFrame
+    mpc_metadata: pd.DataFrame
     pgg_metadata: pd.DataFrame
     manifest: Dict[str, str]
 
@@ -252,8 +252,8 @@ class PlasRipReferenceDatabase:
         return self.manifest["mash_reference_id_pattern"]
 
     @property
-    def ptu_threshold(self) -> float:
-        return float(self.manifest["query_PTU_Mash_cutoff"])
+    def mpc_threshold(self) -> float:
+        return float(self.manifest["query_MPC_Mash_cutoff"])
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ def resolve_database_dir(database_dir: str | os.PathLike[str] | None = None) -> 
       1. explicit ``database_dir``
       2. ``PLASRIP_DATABASE`` environment variable
 
-    No PTU/PGG reference database is bundled inside the Python package.
+    No MPC/PGG reference database is bundled inside the Python package.
     """
     if database_dir:
         return Path(database_dir).expanduser().resolve()
@@ -417,7 +417,7 @@ def _validate_manifest_semantics(manifest: Dict[str, str]) -> None:
     if manifest["schema_version"] != SUPPORTED_SCHEMA_VERSION:
         raise PlasRipDataError(
             f"Unsupported database schema_version={manifest['schema_version']!r}; "
-            f"PlasRiP v0.2 supports schema {SUPPORTED_SCHEMA_VERSION}."
+            f"PlasRiP v0.3 supports schema {SUPPORTED_SCHEMA_VERSION}."
         )
 
     try:
@@ -427,10 +427,10 @@ def _validate_manifest_semantics(manifest: Dict[str, str]) -> None:
             f"Manifest release_date must use ISO YYYY-MM-DD format, got {manifest['release_date']!r}"
         ) from exc
 
-    if manifest["PTU_ID_format"] != EXPECTED_PTU_ID_EXAMPLE:
+    if manifest["MPC_ID_format"] != EXPECTED_MPC_ID_EXAMPLE:
         raise PlasRipDataError(
-            f"Unsupported PTU_ID_format={manifest['PTU_ID_format']!r}; "
-            f"schema 2.0 requires {EXPECTED_PTU_ID_EXAMPLE!r}."
+            f"Unsupported MPC_ID_format={manifest['MPC_ID_format']!r}; "
+            f"schema 2.0 requires {EXPECTED_MPC_ID_EXAMPLE!r}."
         )
     if manifest["PGG_ID_format"] != EXPECTED_PGG_ID_EXAMPLE:
         raise PlasRipDataError(
@@ -464,10 +464,10 @@ def _validate_manifest_semantics(manifest: Dict[str, str]) -> None:
             f"manifest reports {sketches_per_file}."
         )
 
-    cutoff = _parse_float(manifest["query_PTU_Mash_cutoff"], "manifest query_PTU_Mash_cutoff")
+    cutoff = _parse_float(manifest["query_MPC_Mash_cutoff"], "manifest query_MPC_Mash_cutoff")
     if not 0.0 < cutoff < 1.0:
         raise PlasRipDataError(
-            f"manifest query_PTU_Mash_cutoff must be in (0, 1), got {cutoff}"
+            f"manifest query_MPC_Mash_cutoff must be in (0, 1), got {cutoff}"
         )
 
     if not manifest["mash_reference_id_pattern"].strip():
@@ -490,7 +490,7 @@ def validate_database_dir(
     Default validation checks file presence, schema, manifest semantics, and
     cross-table integrity without walking the Mash index.
 
-    ``check_sketches=True`` additionally verifies every PTU representative
+    ``check_sketches=True`` additionally verifies every MPC representative
     sketch. ``check_all_sketches=True`` verifies all reference-plasmid sketches
     and is intended for full release QC.
     """
@@ -500,7 +500,7 @@ def validate_database_dir(
 
     manifest_path = root / DATABASE_MANIFEST_FILENAME
     index_path = root / PLASMID_REFERENCE_INDEX_FILENAME
-    ptu_path = root / PTU_METADATA_FILENAME
+    mpc_path = root / MPC_METADATA_FILENAME
     pgg_path = root / PGG_METADATA_FILENAME
 
     manifest = load_manifest(manifest_path)
@@ -511,23 +511,23 @@ def validate_database_dir(
         raise PlasRipDataError(f"Mash index directory not found: {mash_dir}")
 
     index = _read_tsv(index_path, INDEX_REQUIRED_COLUMNS, "plasmid reference index")
-    ptu = _read_tsv(ptu_path, PTU_REQUIRED_COLUMNS, "PTU metadata")
+    mpc = _read_tsv(mpc_path, MPC_REQUIRED_COLUMNS, "MPC metadata")
     pgg = _read_tsv(pgg_path, PGG_REQUIRED_COLUMNS, "PGG metadata")
 
     # ----- nonempty key fields, uniqueness, and identifier format -----
     _validate_nonempty(
         index,
-        ["mash_reference_id", "plasmid_id", "accession", "length_bp", "PTU_assignment_status", "is_PTU_representative"],
+        ["mash_reference_id", "plasmid_id", "accession", "length_bp", "MPC_assignment_status", "is_MPC_representative"],
         "plasmid reference index",
     )
     _validate_nonempty(
-        ptu,
-        ["PTU_ID", "representative_plasmid", "n_plasmids", "PGG_assignment_status"],
-        "PTU metadata",
+        mpc,
+        ["MPC_ID", "representative_plasmid", "n_plasmids", "PGG_assignment_status"],
+        "MPC metadata",
     )
     _validate_nonempty(
         pgg,
-        ["PGG_ID", "n_PTUs", "n_plasmids", "anchor_PTU", "anchor_representative_plasmid"],
+        ["PGG_ID", "n_MPCs", "n_plasmids", "anchor_MPC", "anchor_representative_plasmid"],
         "PGG metadata",
     )
 
@@ -535,14 +535,14 @@ def validate_database_dir(
         raise PlasRipDataError("plasmid_reference_index.tsv contains duplicate plasmid_id values")
     if index["mash_reference_id"].duplicated().any():
         raise PlasRipDataError("plasmid_reference_index.tsv contains duplicate mash_reference_id values")
-    if ptu["PTU_ID"].duplicated().any():
-        raise PlasRipDataError("PTU_metadata.tsv contains duplicate PTU_ID values")
+    if mpc["MPC_ID"].duplicated().any():
+        raise PlasRipDataError("MPC_metadata.tsv contains duplicate MPC_ID values")
     if pgg["PGG_ID"].duplicated().any():
         raise PlasRipDataError("PGG_metadata.tsv contains duplicate PGG_ID values")
 
-    _validate_id_format(ptu["PTU_ID"], PTU_ID_RE, "PTU_ID")
+    _validate_id_format(mpc["MPC_ID"], MPC_ID_RE, "MPC_ID")
     _validate_id_format(pgg["PGG_ID"], PGG_ID_RE, "PGG_ID")
-    _validate_canonical_bool_column(index, "is_PTU_representative", "plasmid reference index")
+    _validate_canonical_bool_column(index, "is_MPC_representative", "plasmid reference index")
 
     # Positive plasmid lengths are part of the runtime reference-index contract.
     invalid_lengths = []
@@ -562,15 +562,15 @@ def validate_database_dir(
         manifest["total_reference_plasmids"], "manifest total_reference_plasmids"
     )
     expected_stable = _parse_nonnegative_int(
-        manifest["stable_PTU_assigned_plasmids"], "manifest stable_PTU_assigned_plasmids"
+        manifest["stable_MPC_assigned_plasmids"], "manifest stable_MPC_assigned_plasmids"
     )
     expected_unassigned = _parse_nonnegative_int(
-        manifest["unassigned_no_stable_PTU_plasmids"],
-        "manifest unassigned_no_stable_PTU_plasmids",
+        manifest["unassigned_no_stable_MPC_plasmids"],
+        "manifest unassigned_no_stable_MPC_plasmids",
     )
-    expected_ptu = _parse_nonnegative_int(manifest["PTU_count"], "manifest PTU_count")
+    expected_mpc = _parse_nonnegative_int(manifest["MPC_count"], "manifest MPC_count")
     expected_pgg_assigned = _parse_nonnegative_int(
-        manifest["PGG_assigned_PTUs"], "manifest PGG_assigned_PTUs"
+        manifest["PGG_assigned_MPCs"], "manifest PGG_assigned_MPCs"
     )
     expected_pgg = _parse_nonnegative_int(manifest["PGG_count"], "manifest PGG_count")
 
@@ -579,9 +579,9 @@ def validate_database_dir(
             f"Reference-plasmid count mismatch: manifest={expected_reference}, "
             f"plasmid_reference_index.tsv={len(index)}"
         )
-    if len(ptu) != expected_ptu:
+    if len(mpc) != expected_mpc:
         raise PlasRipDataError(
-            f"PTU count mismatch: manifest={expected_ptu}, PTU_metadata.tsv={len(ptu)}"
+            f"MPC count mismatch: manifest={expected_mpc}, MPC_metadata.tsv={len(mpc)}"
         )
     if len(pgg) != expected_pgg:
         raise PlasRipDataError(
@@ -594,10 +594,10 @@ def validate_database_dir(
             f"!= total ({expected_reference})."
         )
 
-    # ----- plasmid -> PTU integrity -----
-    index_ptu = index["PTU_ID"].astype(str).str.strip()
-    index_status = index["PTU_assignment_status"].astype(str).str.strip()
-    assigned_mask = index_ptu != ""
+    # ----- plasmid -> MPC integrity -----
+    index_mpc = index["MPC_ID"].astype(str).str.strip()
+    index_status = index["MPC_assignment_status"].astype(str).str.strip()
+    assigned_mask = index_mpc != ""
     stable_mask = index_status == INDEX_ASSIGNED_STATUS
     unassigned_mask = index_status == INDEX_UNASSIGNED_STATUS
 
@@ -605,29 +605,29 @@ def validate_database_dir(
         ~index_status.isin({INDEX_ASSIGNED_STATUS, INDEX_UNASSIGNED_STATUS})
     ]
     if not invalid_index_status.empty:
-        bad = invalid_index_status[["plasmid_id", "PTU_assignment_status"]].head(10).to_dict(orient="records")
-        raise PlasRipDataError(f"Invalid PTU_assignment_status values: {bad}")
+        bad = invalid_index_status[["plasmid_id", "MPC_assignment_status"]].head(10).to_dict(orient="records")
+        raise PlasRipDataError(f"Invalid MPC_assignment_status values: {bad}")
     if not (assigned_mask == stable_mask).all():
         bad = index.loc[
             assigned_mask != stable_mask,
-            ["plasmid_id", "PTU_ID", "PTU_assignment_status"],
+            ["plasmid_id", "MPC_ID", "MPC_assignment_status"],
         ].head(10)
         raise PlasRipDataError(
-            "PTU_ID/PTU_assignment_status inconsistency in plasmid reference index. "
+            "MPC_ID/MPC_assignment_status inconsistency in plasmid reference index. "
             f"Examples: {bad.to_dict(orient='records')}"
         )
     if not ((~assigned_mask) == unassigned_mask).all():
         bad = index.loc[
             (~assigned_mask) != unassigned_mask,
-            ["plasmid_id", "PTU_ID", "PTU_assignment_status"],
+            ["plasmid_id", "MPC_ID", "MPC_assignment_status"],
         ].head(10)
         raise PlasRipDataError(
-            "Unassigned plasmid status is inconsistent with empty PTU_ID. "
+            "Unassigned plasmid status is inconsistent with empty MPC_ID. "
             f"Examples: {bad.to_dict(orient='records')}"
         )
     if int(stable_mask.sum()) != expected_stable:
         raise PlasRipDataError(
-            f"Stable PTU-assigned plasmid count mismatch: manifest={expected_stable}, "
+            f"Stable MPC-assigned plasmid count mismatch: manifest={expected_stable}, "
             f"index={int(stable_mask.sum())}"
         )
     if int(unassigned_mask.sum()) != expected_unassigned:
@@ -636,49 +636,49 @@ def validate_database_dir(
             f"index={int(unassigned_mask.sum())}"
         )
 
-    ptu_ids = set(ptu["PTU_ID"].astype(str))
-    _validate_id_format(index.loc[assigned_mask, "PTU_ID"], PTU_ID_RE, "index PTU_ID")
-    bad_ptu = sorted(set(index.loc[assigned_mask, "PTU_ID"].astype(str)) - ptu_ids)
-    if bad_ptu:
+    mpc_ids = set(mpc["MPC_ID"].astype(str))
+    _validate_id_format(index.loc[assigned_mask, "MPC_ID"], MPC_ID_RE, "index MPC_ID")
+    bad_mpc = sorted(set(index.loc[assigned_mask, "MPC_ID"].astype(str)) - mpc_ids)
+    if bad_mpc:
         raise PlasRipDataError(
-            "Reference index contains PTU IDs absent from PTU metadata "
-            f"(showing up to 10): {bad_ptu[:10]}"
+            "Reference index contains MPC IDs absent from MPC metadata "
+            f"(showing up to 10): {bad_mpc[:10]}"
         )
 
-    # Every PTU must have the number of stable members reported in metadata.
-    member_counts = index.loc[stable_mask].groupby("PTU_ID").size().to_dict()
+    # Every MPC must have the number of stable members reported in metadata.
+    member_counts = index.loc[stable_mask].groupby("MPC_ID").size().to_dict()
     metadata_member_counts: Dict[str, int] = {}
-    for row in ptu[["PTU_ID", "n_plasmids"]].itertuples(index=False):
-        metadata_member_counts[str(row.PTU_ID)] = _parse_positive_int(
-            str(row.n_plasmids), f"PTU {row.PTU_ID} n_plasmids"
+    for row in mpc[["MPC_ID", "n_plasmids"]].itertuples(index=False):
+        metadata_member_counts[str(row.MPC_ID)] = _parse_positive_int(
+            str(row.n_plasmids), f"MPC {row.MPC_ID} n_plasmids"
         )
 
-    missing_ptu_members = sorted(ptu_ids - set(member_counts))
-    if missing_ptu_members:
+    missing_mpc_members = sorted(mpc_ids - set(member_counts))
+    if missing_mpc_members:
         raise PlasRipDataError(
-            f"PTUs without stable member plasmids (showing up to 10): {missing_ptu_members[:10]}"
+            f"MPCs without stable member plasmids (showing up to 10): {missing_mpc_members[:10]}"
         )
     member_mismatch = [
-        (ptu_id, metadata_member_counts[ptu_id], int(member_counts.get(ptu_id, 0)))
-        for ptu_id in sorted(ptu_ids)
-        if metadata_member_counts[ptu_id] != int(member_counts.get(ptu_id, 0))
+        (mpc_id, metadata_member_counts[mpc_id], int(member_counts.get(mpc_id, 0)))
+        for mpc_id in sorted(mpc_ids)
+        if metadata_member_counts[mpc_id] != int(member_counts.get(mpc_id, 0))
     ]
     if member_mismatch:
         raise PlasRipDataError(
-            "PTU member-count mismatch between PTU_metadata.tsv and plasmid_reference_index.tsv "
+            "MPC member-count mismatch between MPC_metadata.tsv and plasmid_reference_index.tsv "
             f"(showing up to 10): {member_mismatch[:10]}"
         )
 
-    # ----- PTU metadata numeric sanity -----
-    for row in ptu[["PTU_ID", "min_length_bp", "median_length_bp", "mean_length_bp", "max_length_bp"]].itertuples(index=False):
-        ptu_id = str(row.PTU_ID)
-        min_len = _parse_float(str(row.min_length_bp), f"PTU {ptu_id} min_length_bp")
-        median_len = _parse_float(str(row.median_length_bp), f"PTU {ptu_id} median_length_bp")
-        mean_len = _parse_float(str(row.mean_length_bp), f"PTU {ptu_id} mean_length_bp")
-        max_len = _parse_float(str(row.max_length_bp), f"PTU {ptu_id} max_length_bp")
+    # ----- MPC metadata numeric sanity -----
+    for row in mpc[["MPC_ID", "min_length_bp", "median_length_bp", "mean_length_bp", "max_length_bp"]].itertuples(index=False):
+        mpc_id = str(row.MPC_ID)
+        min_len = _parse_float(str(row.min_length_bp), f"MPC {mpc_id} min_length_bp")
+        median_len = _parse_float(str(row.median_length_bp), f"MPC {mpc_id} median_length_bp")
+        mean_len = _parse_float(str(row.mean_length_bp), f"MPC {mpc_id} mean_length_bp")
+        max_len = _parse_float(str(row.max_length_bp), f"MPC {mpc_id} max_length_bp")
         if min_len <= 0 or not (min_len <= median_len <= max_len) or not (min_len <= mean_len <= max_len):
             raise PlasRipDataError(
-                f"Invalid PTU length summary for {ptu_id}: "
+                f"Invalid MPC length summary for {mpc_id}: "
                 f"min={min_len}, median={median_len}, mean={mean_len}, max={max_len}"
             )
 
@@ -691,163 +691,163 @@ def validate_database_dir(
         "top_host_class_coverage": "n_host_classes",
         "top_host_phylum_coverage": "n_host_phyla",
     }
-    for column in PTU_FRACTION_COLUMNS:
+    for column in MPC_FRACTION_COLUMNS:
         bad = []
         count_column = optional_fraction_count_columns.get(column)
-        columns = ["PTU_ID", column] + ([count_column] if count_column else [])
-        for row in ptu[columns].itertuples(index=False):
+        columns = ["MPC_ID", column] + ([count_column] if count_column else [])
+        for row in mpc[columns].itertuples(index=False):
             value = getattr(row, column)
             if value == "" and count_column:
                 n_available = _parse_nonnegative_int(
                     str(getattr(row, count_column)),
-                    f"PTU {row.PTU_ID} {count_column}",
+                    f"MPC {row.MPC_ID} {count_column}",
                 )
                 if n_available == 0:
                     continue
             try:
-                _parse_fraction(str(value), f"PTU {row.PTU_ID} {column}")
+                _parse_fraction(str(value), f"MPC {row.MPC_ID} {column}")
             except PlasRipDataError:
-                bad.append((str(row.PTU_ID), str(value)))
+                bad.append((str(row.MPC_ID), str(value)))
         if bad:
             raise PlasRipDataError(
-                f"PTU_metadata.tsv contains invalid {column} values (showing up to 10): {bad[:10]}"
+                f"MPC_metadata.tsv contains invalid {column} values (showing up to 10): {bad[:10]}"
             )
 
     # Mobility is exhaustive in the schema-2.0 source metadata.
     bad_mobility = []
-    for row in ptu[["PTU_ID", "n_plasmids", "n_CONJ", "n_MOB", "n_NT"]].itertuples(index=False):
-        n = metadata_member_counts[str(row.PTU_ID)]
+    for row in mpc[["MPC_ID", "n_plasmids", "n_CONJ", "n_MOB", "n_NT"]].itertuples(index=False):
+        n = metadata_member_counts[str(row.MPC_ID)]
         counts = [
-            _parse_nonnegative_int(str(row.n_CONJ), f"PTU {row.PTU_ID} n_CONJ"),
-            _parse_nonnegative_int(str(row.n_MOB), f"PTU {row.PTU_ID} n_MOB"),
-            _parse_nonnegative_int(str(row.n_NT), f"PTU {row.PTU_ID} n_NT"),
+            _parse_nonnegative_int(str(row.n_CONJ), f"MPC {row.MPC_ID} n_CONJ"),
+            _parse_nonnegative_int(str(row.n_MOB), f"MPC {row.MPC_ID} n_MOB"),
+            _parse_nonnegative_int(str(row.n_NT), f"MPC {row.MPC_ID} n_NT"),
         ]
         if sum(counts) != n:
-            bad_mobility.append((str(row.PTU_ID), n, *counts))
+            bad_mobility.append((str(row.MPC_ID), n, *counts))
     if bad_mobility:
         raise PlasRipDataError(
-            "PTU mobility counts do not sum to n_plasmids (showing up to 10): "
+            "MPC mobility counts do not sum to n_plasmids (showing up to 10): "
             f"{bad_mobility[:10]}"
         )
 
     # Host-range rank/level fields must agree.
     bad_host_rank = []
-    for row in ptu[["PTU_ID", "observed_host_range_level", "observed_host_range_rank"]].itertuples(index=False):
+    for row in mpc[["MPC_ID", "observed_host_range_level", "observed_host_range_rank"]].itertuples(index=False):
         level = str(row.observed_host_range_level)
         rank = str(row.observed_host_range_rank)
         if HOST_RANGE_LEVEL_TO_RANK.get(level) != rank:
-            bad_host_rank.append((str(row.PTU_ID), level, rank))
+            bad_host_rank.append((str(row.MPC_ID), level, rank))
     if bad_host_rank:
         raise PlasRipDataError(
-            "PTU observed_host_range_level/rank mismatch (showing up to 10): "
+            "MPC observed_host_range_level/rank mismatch (showing up to 10): "
             f"{bad_host_rank[:10]}"
         )
 
-    # ----- exactly one representative per PTU, and metadata must point to it -----
-    rep_mask = _as_bool_series(index["is_PTU_representative"])
+    # ----- exactly one representative per MPC, and metadata must point to it -----
+    rep_mask = _as_bool_series(index["is_MPC_representative"])
     representative = index.loc[rep_mask].copy()
-    if len(representative) != len(ptu):
+    if len(representative) != len(mpc):
         raise PlasRipDataError(
-            f"Representative count mismatch: representatives={len(representative)}, PTUs={len(ptu)}"
+            f"Representative count mismatch: representatives={len(representative)}, MPCs={len(mpc)}"
         )
-    if (representative["PTU_ID"] == "").any():
-        bad = representative.loc[representative["PTU_ID"] == "", "plasmid_id"].head(10).tolist()
-        raise PlasRipDataError(f"PTU representatives without a PTU assignment: {bad}")
-    rep_counts = representative.groupby("PTU_ID").size()
+    if (representative["MPC_ID"] == "").any():
+        bad = representative.loc[representative["MPC_ID"] == "", "plasmid_id"].head(10).tolist()
+        raise PlasRipDataError(f"MPC representatives without a MPC assignment: {bad}")
+    rep_counts = representative.groupby("MPC_ID").size()
     bad_rep_counts = rep_counts[rep_counts != 1]
-    if len(rep_counts) != len(ptu) or not bad_rep_counts.empty:
+    if len(rep_counts) != len(mpc) or not bad_rep_counts.empty:
         raise PlasRipDataError(
-            "Each PTU must have exactly one representative plasmid. "
+            "Each MPC must have exactly one representative plasmid. "
             f"Non-unit representative counts: {bad_rep_counts.head(10).to_dict()}"
         )
-    rep_by_ptu = representative.set_index("PTU_ID")["plasmid_id"].to_dict()
+    rep_by_mpc = representative.set_index("MPC_ID")["plasmid_id"].to_dict()
     bad_representative = []
-    for row in ptu[["PTU_ID", "representative_plasmid"]].itertuples(index=False):
-        if rep_by_ptu.get(str(row.PTU_ID)) != str(row.representative_plasmid):
+    for row in mpc[["MPC_ID", "representative_plasmid"]].itertuples(index=False):
+        if rep_by_mpc.get(str(row.MPC_ID)) != str(row.representative_plasmid):
             bad_representative.append(
-                (str(row.PTU_ID), str(row.representative_plasmid), rep_by_ptu.get(str(row.PTU_ID)))
+                (str(row.MPC_ID), str(row.representative_plasmid), rep_by_mpc.get(str(row.MPC_ID)))
             )
     if bad_representative:
         raise PlasRipDataError(
-            "PTU representative mismatch between PTU_metadata.tsv and plasmid_reference_index.tsv "
+            "MPC representative mismatch between MPC_metadata.tsv and plasmid_reference_index.tsv "
             f"(showing up to 10): {bad_representative[:10]}"
         )
 
-    # ----- PTU -> PGG integrity -----
-    ptu_pgg_id = ptu["PGG_ID"].astype(str).str.strip()
-    ptu_pgg_status = ptu["PGG_assignment_status"].astype(str).str.strip()
+    # ----- MPC -> PGG integrity -----
+    mpc_pgg_id = mpc["PGG_ID"].astype(str).str.strip()
+    mpc_pgg_status = mpc["PGG_assignment_status"].astype(str).str.strip()
     valid_pgg_statuses = {PGG_ASSIGNED_STATUS} | PGG_UNASSIGNED_STATUSES
-    invalid_pgg_status = ptu.loc[~ptu_pgg_status.isin(valid_pgg_statuses)]
+    invalid_pgg_status = mpc.loc[~mpc_pgg_status.isin(valid_pgg_statuses)]
     if not invalid_pgg_status.empty:
-        bad = invalid_pgg_status[["PTU_ID", "PGG_assignment_status"]].head(10).to_dict(orient="records")
+        bad = invalid_pgg_status[["MPC_ID", "PGG_assignment_status"]].head(10).to_dict(orient="records")
         raise PlasRipDataError(f"Invalid PGG_assignment_status values: {bad}")
 
-    pgg_assigned_mask = ptu_pgg_status == PGG_ASSIGNED_STATUS
-    if not ((ptu_pgg_id != "") == pgg_assigned_mask).all():
-        bad = ptu.loc[
-            (ptu_pgg_id != "") != pgg_assigned_mask,
-            ["PTU_ID", "PGG_ID", "PGG_assignment_status"],
+    pgg_assigned_mask = mpc_pgg_status == PGG_ASSIGNED_STATUS
+    if not ((mpc_pgg_id != "") == pgg_assigned_mask).all():
+        bad = mpc.loc[
+            (mpc_pgg_id != "") != pgg_assigned_mask,
+            ["MPC_ID", "PGG_ID", "PGG_assignment_status"],
         ].head(10)
         raise PlasRipDataError(
-            "PGG_ID/PGG_assignment_status inconsistency in PTU metadata. "
+            "PGG_ID/PGG_assignment_status inconsistency in MPC metadata. "
             f"Examples: {bad.to_dict(orient='records')}"
         )
     if int(pgg_assigned_mask.sum()) != expected_pgg_assigned:
         raise PlasRipDataError(
-            f"PGG-assigned PTU count mismatch: manifest={expected_pgg_assigned}, "
-            f"PTU metadata={int(pgg_assigned_mask.sum())}"
+            f"PGG-assigned MPC count mismatch: manifest={expected_pgg_assigned}, "
+            f"MPC metadata={int(pgg_assigned_mask.sum())}"
         )
 
     pgg_ids = set(pgg["PGG_ID"].astype(str))
-    _validate_id_format(ptu.loc[pgg_assigned_mask, "PGG_ID"], PGG_ID_RE, "PTU metadata PGG_ID")
-    bad_pgg = sorted(set(ptu.loc[pgg_assigned_mask, "PGG_ID"].astype(str)) - pgg_ids)
+    _validate_id_format(mpc.loc[pgg_assigned_mask, "PGG_ID"], PGG_ID_RE, "MPC metadata PGG_ID")
+    bad_pgg = sorted(set(mpc.loc[pgg_assigned_mask, "PGG_ID"].astype(str)) - pgg_ids)
     if bad_pgg:
         raise PlasRipDataError(
-            f"PTU metadata contains PGG IDs absent from PGG metadata (showing up to 10): {bad_pgg[:10]}"
+            f"MPC metadata contains PGG IDs absent from PGG metadata (showing up to 10): {bad_pgg[:10]}"
         )
 
-    ptu_count_by_pgg = ptu.loc[pgg_assigned_mask].groupby("PGG_ID").size().to_dict()
+    mpc_count_by_pgg = mpc.loc[pgg_assigned_mask].groupby("PGG_ID").size().to_dict()
     plasmid_count_by_pgg = (
-        ptu.loc[pgg_assigned_mask, ["PTU_ID", "PGG_ID"]]
-        .assign(n_plasmids=lambda d: d["PTU_ID"].map(metadata_member_counts))
+        mpc.loc[pgg_assigned_mask, ["MPC_ID", "PGG_ID"]]
+        .assign(n_plasmids=lambda d: d["MPC_ID"].map(metadata_member_counts))
         .groupby("PGG_ID")["n_plasmids"]
         .sum()
         .to_dict()
     )
-    ptu_rep_lookup = ptu.set_index("PTU_ID")["representative_plasmid"].to_dict()
+    mpc_rep_lookup = mpc.set_index("MPC_ID")["representative_plasmid"].to_dict()
 
     pgg_mismatch = []
     anchor_mismatch = []
     for row in pgg[
-        ["PGG_ID", "n_PTUs", "n_plasmids", "anchor_PTU", "anchor_representative_plasmid"]
+        ["PGG_ID", "n_MPCs", "n_plasmids", "anchor_MPC", "anchor_representative_plasmid"]
     ].itertuples(index=False):
         pgg_id = str(row.PGG_ID)
-        n_ptus = _parse_positive_int(str(row.n_PTUs), f"PGG {pgg_id} n_PTUs")
+        n_mpcs = _parse_positive_int(str(row.n_MPCs), f"PGG {pgg_id} n_MPCs")
         n_plasmids = _parse_positive_int(str(row.n_plasmids), f"PGG {pgg_id} n_plasmids")
-        actual_ptus = int(ptu_count_by_pgg.get(pgg_id, 0))
+        actual_mpcs = int(mpc_count_by_pgg.get(pgg_id, 0))
         actual_plasmids = int(plasmid_count_by_pgg.get(pgg_id, 0))
-        if n_ptus != actual_ptus or n_plasmids != actual_plasmids:
-            pgg_mismatch.append((pgg_id, n_ptus, actual_ptus, n_plasmids, actual_plasmids))
+        if n_mpcs != actual_mpcs or n_plasmids != actual_plasmids:
+            pgg_mismatch.append((pgg_id, n_mpcs, actual_mpcs, n_plasmids, actual_plasmids))
 
-        anchor_ptu = str(row.anchor_PTU)
+        anchor_mpc = str(row.anchor_MPC)
         anchor_rep = str(row.anchor_representative_plasmid)
         anchor_ok = (
-            anchor_ptu in ptu_ids
-            and ptu.loc[ptu["PTU_ID"] == anchor_ptu, "PGG_ID"].iloc[0] == pgg_id
-            and ptu_rep_lookup.get(anchor_ptu) == anchor_rep
+            anchor_mpc in mpc_ids
+            and mpc.loc[mpc["MPC_ID"] == anchor_mpc, "PGG_ID"].iloc[0] == pgg_id
+            and mpc_rep_lookup.get(anchor_mpc) == anchor_rep
         )
         if not anchor_ok:
-            anchor_mismatch.append((pgg_id, anchor_ptu, anchor_rep))
+            anchor_mismatch.append((pgg_id, anchor_mpc, anchor_rep))
 
     if pgg_mismatch:
         raise PlasRipDataError(
-            "PGG size mismatch between PGG_metadata.tsv and PTU_metadata.tsv "
-            "(PGG, expected_PTUs, actual_PTUs, expected_plasmids, actual_plasmids; up to 10): "
+            "PGG size mismatch between PGG_metadata.tsv and MPC_metadata.tsv "
+            "(PGG, expected_MPCs, actual_MPCs, expected_plasmids, actual_plasmids; up to 10): "
             f"{pgg_mismatch[:10]}"
         )
     if anchor_mismatch:
         raise PlasRipDataError(
-            "Invalid PGG anchor PTU/representative mapping (showing up to 10): "
+            "Invalid PGG anchor MPC/representative mapping (showing up to 10): "
             f"{anchor_mismatch[:10]}"
         )
 
@@ -903,10 +903,10 @@ def validate_database_dir(
         "schema_version": manifest["schema_version"],
         "mash_index_dir": str(mash_dir),
         "reference_plasmids": len(index),
-        "stable_PTU_assigned_plasmids": int(stable_mask.sum()),
+        "stable_MPC_assigned_plasmids": int(stable_mask.sum()),
         "unassigned_plasmids": int(unassigned_mask.sum()),
-        "PTUs": len(ptu),
-        "PGG_assigned_PTUs": int(pgg_assigned_mask.sum()),
+        "MPCs": len(mpc),
+        "PGG_assigned_MPCs": int(pgg_assigned_mask.sum()),
         "PGGs": len(pgg),
         "representatives": len(representative),
         "mash_version": manifest["mash_version"],
@@ -915,7 +915,7 @@ def validate_database_dir(
         "mash_k": int(manifest["mash_k"]),
         "mash_sketch_size": int(manifest["mash_target_min_hashes_per_sketch"]),
         "mash_alphabet": manifest["mash_alphabet"],
-        "ptu_threshold": float(manifest["query_PTU_Mash_cutoff"]),
+        "mpc_threshold": float(manifest["query_MPC_Mash_cutoff"]),
         "representative_sketches_checked": bool(check_sketches or check_all_sketches),
         "all_sketches_checked": bool(check_all_sketches),
     }
@@ -942,14 +942,14 @@ def load_database(
         INDEX_REQUIRED_COLUMNS,
         "plasmid reference index",
     )
-    ptu = _read_tsv(root / PTU_METADATA_FILENAME, PTU_REQUIRED_COLUMNS, "PTU metadata")
+    mpc = _read_tsv(root / MPC_METADATA_FILENAME, MPC_REQUIRED_COLUMNS, "MPC metadata")
     pgg = _read_tsv(root / PGG_METADATA_FILENAME, PGG_REQUIRED_COLUMNS, "PGG metadata")
 
     return PlasRipReferenceDatabase(
         root=root,
         mash_index_dir=mash_dir,
         plasmid_index=index,
-        ptu_metadata=ptu,
+        mpc_metadata=mpc,
         pgg_metadata=pgg,
         manifest=manifest,
     )
@@ -994,7 +994,7 @@ def _version_tuple(value: str) -> Tuple[int, ...]:
 def get_mash_runtime_version(mash_cmd: str = "mash") -> str:
     """Return the installed Mash version string.
 
-    The executable is checked explicitly before any PTU assignment starts so
+    The executable is checked explicitly before any MPC assignment starts so
     users receive a clear configuration error instead of a later subprocess
     failure.
     """
@@ -1132,7 +1132,7 @@ def validate_reference_sketch_sample(
     mash_cmd: str = "mash",
     sample_size: int = 3,
 ) -> List[str]:
-    """Inspect a deterministic sample of PTU representative sketches.
+    """Inspect a deterministic sample of MPC representative sketches.
 
     This guards against a database directory containing sketches generated
     with parameters different from its manifest without paying the cost of
@@ -1141,10 +1141,10 @@ def validate_reference_sketch_sample(
     if sample_size < 1:
         return []
     index = db.plasmid_index.copy()
-    index["_is_rep"] = _as_bool_series(index["is_PTU_representative"])
+    index["_is_rep"] = _as_bool_series(index["is_MPC_representative"])
     reps = index.loc[index["_is_rep"], "plasmid_id"].astype(str).tolist()
     if not reps:
-        raise PlasRipDataError("Reference database contains no PTU representative sketches.")
+        raise PlasRipDataError("Reference database contains no MPC representative sketches.")
 
     if len(reps) <= sample_size:
         selected = reps
@@ -1168,37 +1168,37 @@ def validate_reference_sketch_sample(
 def build_assignment_indexes(
     db: PlasRipReferenceDatabase,
 ) -> Tuple[Dict[str, List[str]], List[str], Dict[str, Tuple[str, str]]]:
-    """Build PTU member and representative indexes for assignment.
+    """Build MPC member and representative indexes for assignment.
 
     Returns:
-      ``ptu_to_members``: PTU -> stable member sketch paths
-      ``rep_paths``: one representative sketch path per PTU
-      ``rep_key_to_record``: Mash/reference-name variants -> (PTU_ID, plasmid_id)
+      ``mpc_to_members``: MPC -> stable member sketch paths
+      ``rep_paths``: one representative sketch path per MPC
+      ``rep_key_to_record``: Mash/reference-name variants -> (MPC_ID, plasmid_id)
 
-    The PTU assignment algorithm itself remains implemented in ``assign.py``.
+    The MPC assignment algorithm itself remains implemented in ``assign.py``.
     """
     index = db.plasmid_index.copy()
-    index["_is_rep"] = _as_bool_series(index["is_PTU_representative"])
+    index["_is_rep"] = _as_bool_series(index["is_MPC_representative"])
 
     stable = index[
-        (index["PTU_assignment_status"] == INDEX_ASSIGNED_STATUS)
-        & (index["PTU_ID"] != "")
+        (index["MPC_assignment_status"] == INDEX_ASSIGNED_STATUS)
+        & (index["MPC_ID"] != "")
     ]
 
-    ptu_to_members: Dict[str, List[str]] = {}
+    mpc_to_members: Dict[str, List[str]] = {}
     missing_members: List[str] = []
     for row in stable.itertuples(index=False):
-        ptu_id = str(getattr(row, "PTU_ID"))
+        mpc_id = str(getattr(row, "MPC_ID"))
         plasmid_id = str(getattr(row, "plasmid_id"))
         path = db.mash_index_dir / f"{plasmid_id}.msh"
         if path.is_file():
-            ptu_to_members.setdefault(ptu_id, []).append(str(path))
+            mpc_to_members.setdefault(mpc_id, []).append(str(path))
         else:
             missing_members.append(str(path))
 
     if missing_members:
         raise PlasRipDataError(
-            f"Reference database is incomplete: missing {len(missing_members)} PTU member sketches. "
+            f"Reference database is incomplete: missing {len(missing_members)} MPC member sketches. "
             f"Examples: {missing_members[:5]}"
         )
 
@@ -1206,7 +1206,7 @@ def build_assignment_indexes(
     rep_paths: List[str] = []
     rep_key_to_record: Dict[str, Tuple[str, str]] = {}
     for row in reps.itertuples(index=False):
-        ptu_id = str(getattr(row, "PTU_ID"))
+        mpc_id = str(getattr(row, "MPC_ID"))
         plasmid_id = str(getattr(row, "plasmid_id"))
         mash_ref = str(getattr(row, "mash_reference_id"))
         path = db.mash_index_dir / f"{plasmid_id}.msh"
@@ -1225,19 +1225,19 @@ def build_assignment_indexes(
         }
         for key in keys:
             existing = rep_key_to_record.get(key)
-            value = (ptu_id, plasmid_id)
+            value = (mpc_id, plasmid_id)
             if existing is not None and existing != value:
                 raise PlasRipDataError(
                     f"Ambiguous representative lookup key {key!r}: {existing} versus {value}"
                 )
             rep_key_to_record[key] = value
 
-    return ptu_to_members, rep_paths, rep_key_to_record
+    return mpc_to_members, rep_paths, rep_key_to_record
 
 
-def ptu_metadata_lookup(db: PlasRipReferenceDatabase) -> Dict[str, Dict[str, str]]:
-    """Return PTU metadata keyed by formal PTU ID."""
-    return db.ptu_metadata.set_index("PTU_ID", drop=False).to_dict(orient="index")
+def mpc_metadata_lookup(db: PlasRipReferenceDatabase) -> Dict[str, Dict[str, str]]:
+    """Return MPC metadata keyed by formal MPC ID."""
+    return db.mpc_metadata.set_index("MPC_ID", drop=False).to_dict(orient="index")
 
 
 def pgg_metadata_lookup(db: PlasRipReferenceDatabase) -> Dict[str, Dict[str, str]]:

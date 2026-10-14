@@ -1,4 +1,4 @@
-"""Feature extraction for PlasRiP v2 host-range prediction.
+"""Feature extraction for PlasRiP host-range prediction.
 
 This module ports the preprocessing logic used by the two-tower host-range
 model. It computes, for each input plasmid FASTA:

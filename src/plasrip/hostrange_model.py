@@ -1,4 +1,4 @@
-"""Model loading and host scoring for PlasRiP v2 host-range prediction."""
+"""Model loading and host scoring for PlasRiP host-range prediction."""
 
 from __future__ import annotations
 

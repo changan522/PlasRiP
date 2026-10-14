@@ -1,4 +1,4 @@
-"""Simple logger factory for PlasRiP v2."""
+"""Simple logger factory for PlasRiP."""
 
 from __future__ import annotations
 

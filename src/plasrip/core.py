@@ -1,4 +1,4 @@
-"""Host-range prediction plus database-backed PTU/PGG assignment."""
+"""Host-range prediction plus database-backed MPC/PGG assignment."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 
-from .assign import run_ptu_assignment
+from .assign import run_mpc_assignment
 from .config import (
     DEFAULT_CORE_LOG_NAME,
     DEFAULT_CORE_SUMMARY_OUT,
@@ -14,20 +14,20 @@ from .config import (
     DEFAULT_HOSTRANGE_SET_OUT,
     DEFAULT_HOSTRANGE_TAXONOMY_OUT,
     DEFAULT_HOSTRANGE_TOP_HITS_OUT,
-    DEFAULT_PTU_HITS_SUFFIX,
-    DEFAULT_PTU_OUT,
+    DEFAULT_MPC_HITS_SUFFIX,
+    DEFAULT_MPC_OUT,
 )
-from .database import build_assignment_indexes, load_database, ptu_metadata_lookup
+from .database import build_assignment_indexes, load_database, mpc_metadata_lookup
 from .predict import run_host_prediction
 from .schemas import (
     CORE_SUMMARY_COLUMNS,
-    PTU_COLUMNS,
-    PTU_HITS_COLUMNS,
-    PTU_ASSIGNMENT_SUMMARY_COLUMNS,
-    PTU_REFERENCE_METADATA_OUTPUT_COLUMNS,
+    MPC_COLUMNS,
+    MPC_HITS_COLUMNS,
+    MPC_ASSIGNMENT_SUMMARY_COLUMNS,
+    MPC_REFERENCE_METADATA_OUTPUT_COLUMNS,
     PGG_REFERENCE_METADATA_OUTPUT_COLUMNS,
-    empty_ptu_df,
-    empty_ptu_hits_df,
+    empty_mpc_df,
+    empty_mpc_hits_df,
     reorder_columns,
 )
 from .utils.console import (
@@ -48,92 +48,92 @@ def _norm_plasmid_key(x: object) -> str:
     return Path(str(x)).stem if x is not None else ""
 
 
-def _standardize_ptu_df(ptu_df: pd.DataFrame) -> pd.DataFrame:
-    if ptu_df is None or ptu_df.empty:
-        return empty_ptu_df()
-    out = ptu_df.copy().rename(columns={
+def _standardize_mpc_df(mpc_df: pd.DataFrame) -> pd.DataFrame:
+    if mpc_df is None or mpc_df.empty:
+        return empty_mpc_df()
+    out = mpc_df.copy().rename(columns={
         "query": "PLASMID",
-        "n_ptu_hits": "PTU_hits",
-        "ptu_assigned": "PTU",
-        "closest_ptu": "PTU_closest",
-        "closest_rep": "PTU_closest_rep",
-        "second_ptu": "PTU_second",
-        "second_rep_dist": "PTU_second_rep_dist",
-        "rep_dist_gap": "PTU_rep_dist_gap",
-        "all_member_ptu": "PTU_all_member",
-        "all_member_max_dist": "PTU_all_member_max_dist",
-        "all_member_avg_dist": "PTU_all_member_avg_dist",
-        "all_member_n": "PTU_all_member_n",
-        "network_ptu": "PTU_network",
-        "network_coverage": "PTU_network_coverage",
-        "network_mean_dist_leq_threshold": "PTU_network_mean_dist_leq_threshold",
-        "network_n_within_threshold": "PTU_network_n_within_threshold",
+        "n_mpc_hits": "MPC_hits",
+        "mpc_assigned": "MPC",
+        "closest_mpc": "MPC_closest",
+        "closest_rep": "MPC_closest_rep",
+        "second_mpc": "MPC_second",
+        "second_rep_dist": "MPC_second_rep_dist",
+        "rep_dist_gap": "MPC_rep_dist_gap",
+        "all_member_mpc": "MPC_all_member",
+        "all_member_max_dist": "MPC_all_member_max_dist",
+        "all_member_avg_dist": "MPC_all_member_avg_dist",
+        "all_member_n": "MPC_all_member_n",
+        "network_mpc": "MPC_network",
+        "network_coverage": "MPC_network_coverage",
+        "network_mean_dist_leq_threshold": "MPC_network_mean_dist_leq_threshold",
+        "network_n_within_threshold": "MPC_network_n_within_threshold",
     })
     if "PLASMID" in out.columns:
         out["PLASMID"] = out["PLASMID"].map(_norm_plasmid_key)
-    return reorder_columns(out, PTU_COLUMNS, keep_extra=False)
+    return reorder_columns(out, MPC_COLUMNS, keep_extra=False)
 
 
-def _standardize_ptu_hits_df(ptu_hits_df: pd.DataFrame) -> pd.DataFrame:
-    if ptu_hits_df is None or ptu_hits_df.empty:
-        return empty_ptu_hits_df()
-    out = ptu_hits_df.copy().rename(columns={"plasmid": "PLASMID"})
+def _standardize_mpc_hits_df(mpc_hits_df: pd.DataFrame) -> pd.DataFrame:
+    if mpc_hits_df is None or mpc_hits_df.empty:
+        return empty_mpc_hits_df()
+    out = mpc_hits_df.copy().rename(columns={"plasmid": "PLASMID"})
     if "PLASMID" in out.columns:
         out["PLASMID"] = out["PLASMID"].map(_norm_plasmid_key)
-    return reorder_columns(out, PTU_HITS_COLUMNS, keep_extra=False)
+    return reorder_columns(out, MPC_HITS_COLUMNS, keep_extra=False)
 
 
-def _ptu_annotation_table(db) -> pd.DataFrame:
+def _mpc_annotation_table(db) -> pd.DataFrame:
     """Build the reference-context table merged into ``core_summary.tsv``.
 
     Naming is intentionally explicit:
     - ``Predicted_*`` fields elsewhere in the core summary describe model predictions
       for the query plasmid.
-    - ``PTU_observed_*`` fields here describe host distributions observed among
-      reference plasmids belonging to the assigned PTU.
-    - ``PGG_*`` fields describe the higher-order reference group of that PTU.
+    - ``MPC_observed_*`` fields here describe host distributions observed among
+      reference plasmids belonging to the assigned MPC.
+    - ``PGG_*`` fields describe the higher-order reference group of that MPC.
 
     The database's list-valued host/ARG/virulence fields remain available in the
     external database and are deliberately not duplicated into the compact summary.
     """
-    ptu = db.ptu_metadata.copy()
-    ptu_rename = {
-        "PTU_ID": "PTU",
-        "representative_plasmid": "PTU_representative_plasmid",
-        "n_plasmids": "PTU_n_plasmids",
-        "mean_length_bp": "PTU_mean_length_bp",
-        "observed_host_range_level": "PTU_observed_host_range_level",
-        "observed_host_range_rank": "PTU_observed_host_range_rank",
-        "dominant_taxon": "PTU_observed_dominant_taxon",
-        "dominant_taxon_coverage": "PTU_observed_dominant_taxon_coverage",
-        "n_host_species": "PTU_observed_n_host_species",
-        "top_host_species": "PTU_observed_top_host_species",
-        "top_host_species_coverage": "PTU_observed_top_host_species_coverage",
-        "n_host_genera": "PTU_observed_n_host_genera",
-        "top_host_genus": "PTU_observed_top_host_genus",
-        "top_host_genus_coverage": "PTU_observed_top_host_genus_coverage",
-        "n_host_phyla": "PTU_observed_n_host_phyla",
-        "top_host_phylum": "PTU_observed_top_host_phylum",
-        "top_host_phylum_coverage": "PTU_observed_top_host_phylum_coverage",
-        "dominant_replicon": "PTU_dominant_replicon",
-        "dominant_replicon_fraction": "PTU_dominant_replicon_fraction",
-        "dominant_mobility": "PTU_dominant_mobility",
-        "ARG_positive_fraction": "PTU_ARG_positive_fraction",
-        "n_unique_ARGs": "PTU_n_unique_ARGs",
-        "unique_ARG_classes": "PTU_unique_ARG_classes",
-        "virulence_positive_fraction": "PTU_virulence_positive_fraction",
-        "n_unique_virulence_genes": "PTU_n_unique_virulence_genes",
+    mpc = db.mpc_metadata.copy()
+    mpc_rename = {
+        "MPC_ID": "MPC",
+        "representative_plasmid": "MPC_representative_plasmid",
+        "n_plasmids": "MPC_n_plasmids",
+        "mean_length_bp": "MPC_mean_length_bp",
+        "observed_host_range_level": "MPC_observed_host_range_level",
+        "observed_host_range_rank": "MPC_observed_host_range_rank",
+        "dominant_taxon": "MPC_observed_dominant_taxon",
+        "dominant_taxon_coverage": "MPC_observed_dominant_taxon_coverage",
+        "n_host_species": "MPC_observed_n_host_species",
+        "top_host_species": "MPC_observed_top_host_species",
+        "top_host_species_coverage": "MPC_observed_top_host_species_coverage",
+        "n_host_genera": "MPC_observed_n_host_genera",
+        "top_host_genus": "MPC_observed_top_host_genus",
+        "top_host_genus_coverage": "MPC_observed_top_host_genus_coverage",
+        "n_host_phyla": "MPC_observed_n_host_phyla",
+        "top_host_phylum": "MPC_observed_top_host_phylum",
+        "top_host_phylum_coverage": "MPC_observed_top_host_phylum_coverage",
+        "dominant_replicon": "MPC_dominant_replicon",
+        "dominant_replicon_fraction": "MPC_dominant_replicon_fraction",
+        "dominant_mobility": "MPC_dominant_mobility",
+        "ARG_positive_fraction": "MPC_ARG_positive_fraction",
+        "n_unique_ARGs": "MPC_n_unique_ARGs",
+        "unique_ARG_classes": "MPC_unique_ARG_classes",
+        "virulence_positive_fraction": "MPC_virulence_positive_fraction",
+        "n_unique_virulence_genes": "MPC_n_unique_virulence_genes",
     }
-    ptu_keep = [c for c in ptu_rename if c in ptu.columns] + [
-        c for c in ["PGG_ID", "PGG_assignment_status"] if c in ptu.columns
+    mpc_keep = [c for c in mpc_rename if c in mpc.columns] + [
+        c for c in ["PGG_ID", "PGG_assignment_status"] if c in mpc.columns
     ]
-    ptu = ptu.loc[:, ptu_keep].rename(columns=ptu_rename)
+    mpc = mpc.loc[:, mpc_keep].rename(columns=mpc_rename)
 
     pgg = db.pgg_metadata.copy()
     pgg_rename = {
-        "n_PTUs": "PGG_n_PTUs",
+        "n_MPCs": "PGG_n_MPCs",
         "n_plasmids": "PGG_n_plasmids",
-        "anchor_PTU": "PGG_anchor_PTU",
+        "anchor_MPC": "PGG_anchor_MPC",
         "anchor_representative_plasmid": "PGG_anchor_representative_plasmid",
         "minimum_internal_support": "PGG_minimum_internal_support",
         "merge_with_parent_support": "PGG_merge_with_parent_support",
@@ -144,10 +144,10 @@ def _ptu_annotation_table(db) -> pd.DataFrame:
     pgg_keep = ["PGG_ID"] + [c for c in pgg_rename if c in pgg.columns]
     pgg = pgg.loc[:, pgg_keep].rename(columns=pgg_rename)
 
-    annotation = ptu.merge(pgg, on="PGG_ID", how="left")
+    annotation = mpc.merge(pgg, on="PGG_ID", how="left")
     expected = [
-        "PTU", "PGG_ID", "PGG_assignment_status",
-        *PTU_REFERENCE_METADATA_OUTPUT_COLUMNS,
+        "MPC", "PGG_ID", "PGG_assignment_status",
+        *MPC_REFERENCE_METADATA_OUTPUT_COLUMNS,
         *PGG_REFERENCE_METADATA_OUTPUT_COLUMNS,
     ]
     return reorder_columns(annotation, expected, keep_extra=False)
@@ -155,18 +155,18 @@ def _ptu_annotation_table(db) -> pd.DataFrame:
 
 def build_core_summary(
     hostrange_df: pd.DataFrame,
-    ptu_df: pd.DataFrame,
-    ptu_annotation: pd.DataFrame,
+    mpc_df: pd.DataFrame,
+    mpc_annotation: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Merge query predictions, PTU assignment, and PTU/PGG reference context.
+    """Merge query predictions, MPC assignment, and MPC/PGG reference context.
 
     ``hostrange_df`` is the query-level model output and therefore retains the
-    ``Predicted_*`` prefix. PTU assignment fields are renamed to explicit
-    ``PTU_assignment_*`` names in the combined summary, while the standalone
-    ``ptu.tsv`` remains unchanged according to the Step-5 schema.
+    ``Predicted_*`` prefix. MPC assignment fields are renamed to explicit
+    ``MPC_assignment_*`` names in the combined summary, while the standalone
+    ``mpc.tsv`` remains unchanged according to the Step-5 schema.
     """
     predicted = hostrange_df.copy() if hostrange_df is not None else pd.DataFrame()
-    assignment = ptu_df.copy() if ptu_df is not None else pd.DataFrame()
+    assignment = mpc_df.copy() if mpc_df is not None else pd.DataFrame()
 
     if "PLASMID" in predicted.columns:
         predicted["PLASMID"] = predicted["PLASMID"].map(_norm_plasmid_key)
@@ -182,13 +182,13 @@ def build_core_summary(
             predicted = pd.DataFrame(columns=["PLASMID"])
 
     assignment_rename = {
-        "how_assigned": "PTU_assignment_method",
-        "PTU_hits": "PTU_candidate_hits",
-        "closest_rep_dist": "PTU_closest_rep_dist",
+        "how_assigned": "MPC_assignment_method",
+        "MPC_hits": "MPC_candidate_hits",
+        "closest_rep_dist": "MPC_closest_rep_dist",
     }
     assignment_cols = [
-        "PLASMID", "PTU", "PGG_ID", "PGG_assignment_status",
-        "how_assigned", "PTU_hits", "closest_rep_dist",
+        "PLASMID", "MPC", "PGG_ID", "PGG_assignment_status",
+        "how_assigned", "MPC_hits", "closest_rep_dist",
     ]
     assignment_sub = assignment.loc[:, [c for c in assignment_cols if c in assignment.columns]].copy()
     assignment_sub.rename(columns=assignment_rename, inplace=True)
@@ -197,12 +197,12 @@ def build_core_summary(
     if not assignment_sub.empty and "PLASMID" in assignment_sub.columns:
         summary = summary.merge(assignment_sub, on="PLASMID", how="left")
 
-    if not ptu_annotation.empty and "PTU" in summary.columns:
-        # PTU assignment is authoritative for PTU/PGG identifiers and PGG status.
-        reference_context = ptu_annotation.drop(
+    if not mpc_annotation.empty and "MPC" in summary.columns:
+        # MPC assignment is authoritative for MPC/PGG identifiers and PGG status.
+        reference_context = mpc_annotation.drop(
             columns=["PGG_ID", "PGG_assignment_status"], errors="ignore"
         )
-        summary = summary.merge(reference_context, on="PTU", how="left")
+        summary = summary.merge(reference_context, on="MPC", how="left")
 
     return reorder_columns(summary, CORE_SUMMARY_COLUMNS, keep_extra=False)
 
@@ -212,8 +212,8 @@ def _reset_core_outputs(out_root: Path, output_all_scores: bool = False) -> None
     reset_tsv(out_root / DEFAULT_HOSTRANGE_TOP_HITS_OUT)
     reset_tsv(out_root / DEFAULT_HOSTRANGE_TAXONOMY_OUT)
     reset_tsv(out_root / DEFAULT_HOSTRANGE_SET_OUT)
-    reset_tsv(out_root / DEFAULT_PTU_OUT)
-    reset_tsv(out_root / f"{DEFAULT_PTU_OUT}{DEFAULT_PTU_HITS_SUFFIX}")
+    reset_tsv(out_root / DEFAULT_MPC_OUT)
+    reset_tsv(out_root / f"{DEFAULT_MPC_OUT}{DEFAULT_MPC_HITS_SUFFIX}")
     reset_tsv(out_root / DEFAULT_CORE_SUMMARY_OUT)
     if output_all_scores:
         from .config import DEFAULT_HOSTRANGE_ALL_SCORES_OUT
@@ -225,8 +225,8 @@ def _append_core_outputs(results: dict, out_root: Path, output_all_scores: bool 
     append_tsv(results.get("top_hits", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_TOP_HITS_OUT)
     append_tsv(results.get("taxonomy", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_TAXONOMY_OUT)
     append_tsv(results.get("set_df", pd.DataFrame()), out_root / DEFAULT_HOSTRANGE_SET_OUT)
-    append_tsv(results.get("ptu", pd.DataFrame()), out_root / DEFAULT_PTU_OUT)
-    append_tsv(results.get("ptu_hits", pd.DataFrame()), out_root / f"{DEFAULT_PTU_OUT}{DEFAULT_PTU_HITS_SUFFIX}")
+    append_tsv(results.get("mpc", pd.DataFrame()), out_root / DEFAULT_MPC_OUT)
+    append_tsv(results.get("mpc_hits", pd.DataFrame()), out_root / f"{DEFAULT_MPC_OUT}{DEFAULT_MPC_HITS_SUFFIX}")
     append_tsv(results.get("core_summary", pd.DataFrame()), out_root / DEFAULT_CORE_SUMMARY_OUT)
     if output_all_scores and "all_scores" in results:
         from .config import DEFAULT_HOSTRANGE_ALL_SCORES_OUT
@@ -243,8 +243,8 @@ def run_core_analysis(
     tax_level: str = "species",
     range_threshold_narrow: float | None = None,
     range_threshold_broad: float | None = None,
-    ptu_threshold: float | None = None,
-    ptu_mash: str = "mash",
+    mpc_threshold: float | None = None,
+    mpc_mash: str = "mash",
     mash_k: int | None = None,
     mash_s: int | None = None,
     output_all_scores: bool = False,
@@ -257,8 +257,8 @@ def run_core_analysis(
     show_header: bool = True,
     _database=None,
     _assignment_indexes=None,
-    _ptu_meta_lookup=None,
-    _ptu_annotation=None,
+    _mpc_meta_lookup=None,
+    _mpc_annotation=None,
 ) -> dict:
     out_root = ensure_dir(out_dir, overwrite=overwrite)
     logger = setup_logger("plasrip.core", log_file or str(out_root / DEFAULT_CORE_LOG_NAME), quiet=True)
@@ -271,10 +271,10 @@ def run_core_analysis(
     assignment_indexes = (
         _assignment_indexes if _assignment_indexes is not None else build_assignment_indexes(db)
     )
-    ptu_lookup = _ptu_meta_lookup if _ptu_meta_lookup is not None else ptu_metadata_lookup(db)
-    ptu_annotation = _ptu_annotation if _ptu_annotation is not None else _ptu_annotation_table(db)
+    mpc_lookup = _mpc_meta_lookup if _mpc_meta_lookup is not None else mpc_metadata_lookup(db)
+    mpc_annotation = _mpc_annotation if _mpc_annotation is not None else _mpc_annotation_table(db)
 
-    frames = {k: [] for k in ["hostrange","top_hits","taxonomy","set_df","ptu","ptu_hits","core_summary","all_scores"]}
+    frames = {k: [] for k in ["hostrange","top_hits","taxonomy","set_df","mpc","mpc_hits","core_summary","all_scores"]}
     total = len(input_fastas)
     completed = failed = 0
 
@@ -284,7 +284,7 @@ def run_core_analysis(
             if show_header:
                 print_header()
             print_info(f"reference database : {db.database_version}")
-            print_info(f"PTUs / PGGs        : {len(db.ptu_metadata)} / {len(db.pgg_metadata)}")
+            print_info(f"MPCs / PGGs        : {len(db.mpc_metadata)} / {len(db.pgg_metadata)}")
 
         for idx, fasta in enumerate(input_fastas, start=1):
             name = Path(fasta).name
@@ -317,39 +317,39 @@ def run_core_analysis(
                     )
 
                 if not quiet:
-                    print_step(name, "PTU/PGG assignment")
-                ptu_out = workdir / "ptu.tsv"
-                ptu_raw = run_ptu_assignment(
-                    input_fastas=[fasta], database_dir=str(db.root), output=str(ptu_out),
-                    threshold=ptu_threshold, threads=threads, mash_cmd=ptu_mash,
+                    print_step(name, "MPC/PGG assignment")
+                mpc_out = workdir / "mpc.tsv"
+                mpc_raw = run_mpc_assignment(
+                    input_fastas=[fasta], database_dir=str(db.root), output=str(mpc_out),
+                    threshold=mpc_threshold, threads=threads, mash_cmd=mpc_mash,
                     mash_k=mash_k, mash_s=mash_s, show_progress=False,
                     _database=db, _assignment_indexes=assignment_indexes,
-                    _ptu_meta_lookup=ptu_lookup,
+                    _mpc_meta_lookup=mpc_lookup,
                 )
-                ptu_df = _standardize_ptu_df(ptu_raw)
-                hits_path = Path(str(ptu_out) + DEFAULT_PTU_HITS_SUFFIX)
-                ptu_hits = (
-                    _standardize_ptu_hits_df(pd.read_csv(hits_path, sep="\t", keep_default_na=False))
-                    if hits_path.is_file() else empty_ptu_hits_df()
+                mpc_df = _standardize_mpc_df(mpc_raw)
+                hits_path = Path(str(mpc_out) + DEFAULT_MPC_HITS_SUFFIX)
+                mpc_hits = (
+                    _standardize_mpc_hits_df(pd.read_csv(hits_path, sep="\t", keep_default_na=False))
+                    if hits_path.is_file() else empty_mpc_hits_df()
                 )
 
-                if not ptu_df.empty and not quiet:
-                    prow = ptu_df.iloc[0]
+                if not mpc_df.empty and not quiet:
+                    prow = mpc_df.iloc[0]
                     print_done(
-                        f"{name} :: PTU={prow.get('PTU', 'NA')} "
+                        f"{name} :: MPC={prow.get('MPC', 'NA')} "
                         f"PGG={prow.get('PGG_ID') or 'NA'} "
                         f"method={prow.get('how_assigned', 'NA')}"
                     )
 
                 results = dict(host_results)
-                results["ptu"] = ptu_df
-                results["ptu_hits"] = ptu_hits
+                results["mpc"] = mpc_df
+                results["mpc_hits"] = mpc_hits
                 results["core_summary"] = build_core_summary(
-                    results.get("hostrange", pd.DataFrame()), ptu_df, ptu_annotation
+                    results.get("hostrange", pd.DataFrame()), mpc_df, mpc_annotation
                 )
                 _append_core_outputs(results, out_root, output_all_scores=output_all_scores)
 
-                for key in ["hostrange","top_hits","taxonomy","set_df","ptu","ptu_hits","core_summary"]:
+                for key in ["hostrange","top_hits","taxonomy","set_df","mpc","mpc_hits","core_summary"]:
                     frames[key].append(results.get(key, pd.DataFrame()))
                 if output_all_scores and "all_scores" in results:
                     frames["all_scores"].append(results["all_scores"])
@@ -368,8 +368,8 @@ def run_core_analysis(
             "top_hits": pd.concat(frames["top_hits"], ignore_index=True) if frames["top_hits"] else pd.DataFrame(),
             "taxonomy": pd.concat(frames["taxonomy"], ignore_index=True) if frames["taxonomy"] else pd.DataFrame(),
             "set_df": pd.concat(frames["set_df"], ignore_index=True) if frames["set_df"] else pd.DataFrame(),
-            "ptu": pd.concat(frames["ptu"], ignore_index=True) if frames["ptu"] else empty_ptu_df(),
-            "ptu_hits": pd.concat(frames["ptu_hits"], ignore_index=True) if frames["ptu_hits"] else empty_ptu_hits_df(),
+            "mpc": pd.concat(frames["mpc"], ignore_index=True) if frames["mpc"] else empty_mpc_df(),
+            "mpc_hits": pd.concat(frames["mpc_hits"], ignore_index=True) if frames["mpc_hits"] else empty_mpc_hits_df(),
             "core_summary": pd.concat(frames["core_summary"], ignore_index=True) if frames["core_summary"] else pd.DataFrame(columns=CORE_SUMMARY_COLUMNS),
             "all_scores": pd.concat(frames["all_scores"], ignore_index=True) if frames["all_scores"] else pd.DataFrame(),
         }
@@ -378,7 +378,7 @@ def run_core_analysis(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run host-range prediction + PTU/PGG assignment")
+    parser = argparse.ArgumentParser(description="Run host-range prediction + MPC/PGG assignment")
     parser.add_argument("-i", "--input", nargs="+", required=True)
     parser.add_argument("--model-dir", default=None)
     parser.add_argument("--database", default=None, help="Reference database directory (or set PLASRIP_DATABASE)")
@@ -388,8 +388,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tax-level", choices=["species","genus","family"], default="species")
     parser.add_argument("--range-threshold-narrow", type=float, default=None)
     parser.add_argument("--range-threshold-broad", type=float, default=None)
-    parser.add_argument("--ptu-threshold", type=float, default=None, help="Default: database manifest cutoff")
-    parser.add_argument("--ptu-mash", default="mash")
+    parser.add_argument("--mpc-threshold", type=float, default=None, help="Default: database manifest cutoff")
+    parser.add_argument("--mpc-mash", default="mash")
     parser.add_argument("--mash-k", type=int, default=None, help="Must match database manifest")
     parser.add_argument("--mash-sketch-size", dest="mash_s", type=int, default=None, help="Must match database manifest")
     parser.add_argument("--output-all-scores", action="store_true")
@@ -408,8 +408,8 @@ def main() -> None:
         input_fastas=args.input, model_dir=args.model_dir, database_dir=args.database,
         out_dir=args.out_dir, topk=args.topk, score_delta=args.score_delta,
         tax_level=args.tax_level, range_threshold_narrow=args.range_threshold_narrow,
-        range_threshold_broad=args.range_threshold_broad, ptu_threshold=args.ptu_threshold,
-        ptu_mash=args.ptu_mash, mash_k=args.mash_k, mash_s=args.mash_s,
+        range_threshold_broad=args.range_threshold_broad, mpc_threshold=args.mpc_threshold,
+        mpc_mash=args.mpc_mash, mash_k=args.mash_k, mash_s=args.mash_s,
         output_all_scores=args.output_all_scores, cache_dir=args.cache_dir,
         keep_intermediate=args.keep_intermediate, threads=args.threads,
         overwrite=args.overwrite, log_file=args.log_file, quiet=args.quiet,
