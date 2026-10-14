@@ -9,7 +9,7 @@
 
 Starting from one or more plasmid FASTA files, PlasRiP integrates candidate host-spectrum prediction, MPC/PGG assignment, antimicrobial-resistance (AMR) gene screening, replicon typing, mobility prediction, and final report generation into a single command-line workflow.
 
-> **Current release:** v0.3.0  
+> **Software version:** v0.3.0  
 > **Reference database:** PlasRiP Reference Database v3.0  
 > **Primary command:** `plasrip`  
 > **Main workflow:** `plasrip run`
@@ -52,7 +52,7 @@ Starting from one or more plasmid FASTA files, PlasRiP integrates candidate host
 
 ## Workflow overview
 
-![PlasRiP workflow overview](docs/images/workflow_overview_mpc.svg)
+![PlasRiP workflow overview](docs/images/Figure_S7.png)
 
 PlasRiP accepts plasmid FASTA or multi-FASTA files, validates the input, and performs two core analyses: **model-based candidate host-spectrum prediction** and **database-backed MPC assignment**. Assigned MPCs are linked to PGGs when applicable. Optional annotation modules then detect AMR genes, plasmid replicons, and mobility systems. Module-level outputs are merged into an integrated final summary.
 
@@ -63,26 +63,26 @@ The two host concepts are intentionally separated:
 
 ---
 
-## MPC naming update
-
-MPC denotes a Mash-based plasmid cluster. This name identifies the Mash-based reference clusters used by PlasRiP and does not claim equivalence with the published plasmid taxonomic unit framework.
-
-Version 0.3.0 reads the MPC-named metadata in Reference Database v3.0 (schema version 2.0). Existing v2.0 PTU-named metadata must be migrated before use. The public API uses `run_mpc_assignment`, `mpc_threshold`, and `mpc_mash`; CLI options use `--mpc-threshold` and `--mpc-mash`. Assignment outputs are `mpc.tsv` and `mpc.tsv.hits.tsv`, and combined summaries use `MPC_*` and `PGG_*MPC*` fields. Current cluster identifiers are `MPC` followed by six digits.
-
-This migration leaves cluster membership, Mash parameters, assignment decisions, model weights, annotation logic, and the application `score_delta` default of 0.20 unchanged. The historical evaluation cutoff of 0.374016 belongs to the archived model evaluation and is not substituted for the application setting.
-
 ## Installation
 
-PlasRiP is designed for Linux. Conda is recommended because it manages the required external bioinformatics tools together with the Python dependencies.
+PlasRiP is designed for Linux. **Conda is the recommended installation method** because it installs PlasRiP together with the required external bioinformatics tools.
 
 ### Recommended: Conda
 
-After v0.3.0 is published to the `changan522` channel:
+Create a dedicated environment and install PlasRiP v0.3.0:
 
 ```bash
 conda create -n plasrip \
-  -c changan522 -c conda-forge -c bioconda \
-  plasrip=0.3.0 -y
+  --override-channels \
+  -c changan522 \
+  -c conda-forge \
+  -c bioconda \
+  python=3.11 plasrip=0.3.0 -y
+```
+
+Activate the environment:
+
+```bash
 conda activate plasrip
 ```
 
@@ -92,25 +92,37 @@ Verify the installation:
 plasrip version
 plasrip --help
 plasrip models --json
+```
+
+Expected version:
+
+```text
+0.3.0
+```
+
+The Conda package resolves the required runtime tools, including **Mash 2.3**, ABRicate, Prodigal, and MacSyFinder.
+
+For ABRicate-based modules, confirm that the required databases are available:
+
+```bash
 abricate --list
 ```
 
-Expected software version: `0.3.0`. The reference database is downloaded separately.
+### Alternative: install the GitHub wheel
 
-### Alternative: install the wheel
-
-Download the v0.3.0 wheel and its checksum from the software Release, verify it, and install it:
+The wheel attached to the GitHub v0.3.0 release provides an alternative installation with `pip`. Download and verify it before installation:
 
 ```bash
 wget https://github.com/changan522/PlasRiP/releases/download/v0.3.0/plasrip-0.3.0-py3-none-any.whl
 wget https://github.com/changan522/PlasRiP/releases/download/v0.3.0/plasrip-0.3.0-py3-none-any.whl.sha256
 sha256sum -c plasrip-0.3.0-py3-none-any.whl.sha256
-python -m pip install --upgrade ./plasrip-0.3.0-py3-none-any.whl
+python -m pip install ./plasrip-0.3.0-py3-none-any.whl
+plasrip version
 ```
 
-The wheel includes the pretrained model resources. External tools (Mash 2.3, ABRicate, Prodigal and MacSyFinder) must be installed separately. The source-tree `environment.yml` lists the runtime dependencies.
+The wheel includes the pretrained model and CONJScan resources. Python dependencies are installed by `pip`; external bioinformatics tools such as Mash 2.3, ABRicate, Prodigal, and MacSyFinder must be installed separately.
 
-The software tag, conda package and download links above become available when their corresponding releases have been published. Before publication, use the supplied local wheel and your local v3.0 database.
+The wheel download URLs and source tag become available after the GitHub `v0.3.0` Release is published.
 
 ### Installation from source
 
@@ -133,6 +145,8 @@ python -m pip install -e . --no-deps
 ## Required reference database
 
 MPC assignment and PGG contextualization require the external **PlasRiP Reference Database v3.0**. The database is versioned independently from the software and is not bundled inside the Python/conda package.
+
+MPC denotes a Mash-based plasmid cluster and does not claim equivalence with the published plasmid taxonomic unit framework. Software v0.3.0 requires the MPC-named database v3.0 (metadata schema 2.0). It uses `--mpc-threshold` and `--mpc-mash` in the CLI, and `run_mpc_assignment`, `mpc_threshold`, and `mpc_mash` in the Python API. Cluster membership, Mash settings, model weights, and assignment logic are unchanged.
 
 Database release page:
 
@@ -403,7 +417,7 @@ Model-directory resolution follows this priority:
 
 ### MPC/PGG reference resources
 
-MPC/PGG metadata are **not bundled in the software package** in v0.3.x. They are provided by the external versioned reference database:
+MPC/PGG metadata are **not bundled in the software package** in v0.3.0. They are provided by the external versioned reference database:
 
 - `mash_index/`
 - `plasmid_reference_index.tsv`
@@ -478,7 +492,7 @@ REPLICON_genes
 MOB
 ```
 
-`Predicted_host_confidence` is not reported in v0.3.x; raw model scores and host-set outputs are retained instead.
+`Predicted_host_confidence` is not reported in v0.3.0; raw model scores and host-set outputs are retained instead.
 
 ---
 
@@ -541,7 +555,7 @@ Confirm that the AMR and PlasmidFinder databases required by your workflow are a
 
 ## Python API
 
-The v0.3.x package exposes the reference-database interface and major workflows:
+The v0.3.0 package exposes the reference-database interface and major workflows:
 
 ```python
 import plasrip
@@ -567,7 +581,7 @@ The exported database helpers include:
 
 ## Developer and maintainer notes
 
-Run the test suite:
+Run the test suite in a Python 3.11 environment:
 
 ```bash
 pytest -q
@@ -602,6 +616,8 @@ PlasRiP/
 ├── pyproject.toml
 ├── README.md
 ├── CHANGELOG.md
+├── RELEASE_NOTES_v0.2.0.md
+├── RELEASE_NOTES_v0.2.1.md
 ├── RELEASE_NOTES_v0.3.0.md
 └── VERSION
 ```
